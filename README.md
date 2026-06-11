@@ -47,9 +47,10 @@ writing all outputs to [`analysis/results/`](analysis/results/). If the data is 
 downloaded, use `python run_all.py --skip-download`.
 
 Two outputs — the risk forward–reverse SI table and the profile-instability figure (Fig 4)
-— additionally need two original Frey et al. (2017) files that are not redistributed here
-(see [Data](#data) → *Human data*). Without them, `run_all.py` **skips** those two scripts; add the files and
-re-run to fill them in.
+— additionally need two original Frey et al. (2017) files. These are **fetched automatically**
+by `download_data.py` straight from the public Frey OSF project (not re-hosted here), so no
+manual step is needed. If they are ever unavailable (e.g. an offline `--skip-download` run),
+`run_all.py` simply **skips** those two scripts and produces everything else.
 
 To run a **single** figure or table instead, the analysis is organized as one folder per
 Results section under [`analysis/src/analysis/`](analysis/src/analysis/); run a script from
@@ -115,18 +116,17 @@ python download_data.py --raw           # intermediate + raw
 python download_data.py --all           # everything
 ```
 
-**Human data.** The original human datasets are not redistributed here; obtain them from
-their original sources: [`Frey et al. (2017)`](https://osf.io/rce7g/overview) and
-[`Johnson et al. (2014)`](https://osf.io/tbmh5/overview). Place them in
-`analysis/data/raw/ipipneo300_data/human/` and `analysis/data/raw/risk_data/human/`.
-They are needed to re-run preprocessing from scratch.
+**Human data.** The original human datasets are not re-hosted here; they come from their
+original sources, [`Frey et al. (2017)`](https://osf.io/rce7g/overview) and
+[`Johnson et al. (2014)`](https://osf.io/tbmh5/overview).
 
-Two **analysis** scripts also read original Frey files directly (for the per-trial LOT/DFD
-keying, which the cleaned data does not carry): `lotteries.csv` and `dfd_perprob.csv`. To
-reproduce the risk forward–reverse SI table and the profile-instability figure (Fig 4),
-download those two files from [Frey et al. (2017)](https://osf.io/rce7g/overview) and place
-them in `analysis/data/raw/risk_data/orig_human_data/`. If they are absent, the two scripts
-skip with a message instead of failing.
+- Two **analysis** scripts read two original Frey files directly (`lotteries.csv`,
+  `dfd_perprob.csv`, for the per-trial LOT/DFD keying the cleaned data does not carry).
+  `download_data.py` pulls these two files **automatically** from the public Frey OSF project,
+  so the default analysis runs with no manual step.
+- To re-run **preprocessing** from scratch you need the *full* original datasets. Download
+  them from the two sources above and place them in
+  `analysis/data/raw/ipipneo300_data/human/` and `analysis/data/raw/risk_data/human/`.
 
 ---
 
