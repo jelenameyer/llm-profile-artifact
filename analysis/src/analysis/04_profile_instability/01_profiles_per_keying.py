@@ -18,6 +18,7 @@ Writes:
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
 import matplotlib.patheffects as patheffects
@@ -58,6 +59,17 @@ HUMAN_IPIP_CSV = (
 # panels — the per-person risk file only stores the content score (chose risky).
 HUMAN_LOT_SRC = ROOT / "analysis/data/raw/risk_data/orig_human_data/lotteries.csv"
 HUMAN_DFD_SRC = ROOT / "analysis/data/raw/risk_data/orig_human_data/dfd_perprob.csv"
+# These two are original Frey et al. (2017) files, not redistributed here (see README,
+# "Human data"). They are required for the human LOT/DFD points; skip if absent.
+_missing = [p.name for p in (HUMAN_LOT_SRC, HUMAN_DFD_SRC) if not p.exists()]
+if _missing:
+    print(
+        f"[skip] needs original Frey et al. (2017) data not redistributed here: {', '.join(_missing)}.\n"
+        "       Download from https://osf.io/rce7g/ and place under\n"
+        "       analysis/data/raw/risk_data/orig_human_data/, then re-run.",
+        file=sys.stderr,
+    )
+    sys.exit(77)
 OUT_TABLE = ROOT / "analysis/results/tables/profiles_per_keying.csv"
 OUT_FIG = ROOT / "analysis/results/figures/profiles_per_keying.pdf"
 OUT_TABLE.parent.mkdir(parents=True, exist_ok=True)

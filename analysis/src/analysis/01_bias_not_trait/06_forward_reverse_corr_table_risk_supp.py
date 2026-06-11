@@ -1,9 +1,27 @@
 """SI table: forward-reverse correlations of the reverse-keyed risk instruments
 (BARRATT/BIS, SSSV, LOT, DFD) across all prompting conditions. Writes
-results/tables/forward_reverse_corr_table_risk_supp.tex."""
+results/tables/forward_reverse_corr_table_risk_supp.tex.
+
+Needs the original Frey et al. (2017) lottery data (lotteries.csv), which is not
+redistributed here; the script skips with instructions if it is absent."""
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from utils import corrs_table_from_conditions, to_latex_table, format_ci_cell
+
+# The LOT human rows are rebuilt from the original per-trial Frey lottery data, which
+# is not shipped with this repo (see README, "Human data"). Skip if it is missing.
+LOT_SRC = Path("../../../data/raw/risk_data/orig_human_data/lotteries.csv")
+if not LOT_SRC.exists():
+    print(
+        f"[skip] needs original Frey et al. (2017) data not redistributed here: {LOT_SRC.name}.\n"
+        "       Download from https://osf.io/rce7g/ and place it at\n"
+        f"       analysis/data/raw/risk_data/orig_human_data/{LOT_SRC.name}, then re-run.",
+        file=sys.stderr,
+    )
+    sys.exit(77)
 
 # load all dfs necessary
 raw_risk_data = pd.read_csv("../../../data/intermediate/risk_data/LLM_data_proc_prompts_direct/LLM_no_flip_data_raw.csv", low_memory=False)
@@ -17,9 +35,7 @@ api_data = pd.read_csv("../../../data/intermediate/risk_data/api_data/LLM_api_no
 api_nr = api_data[api_data["model"].str.contains("_nr", regex=False)]
 # raw LOT trials: used to rebuild the LOT human rows with per-trial keying (see the
 # LOT override block below).
-raw_lotteries_humans = pd.read_csv(
-    "../../../data/raw/risk_data/orig_human_data/lotteries.csv", low_memory=False
-)
+raw_lotteries_humans = pd.read_csv(LOT_SRC, low_memory=False)
 
 # for humans convert to numerical response column
 # Note: do NOT map 0 -> None — for binary risk tasks (LOT, DFD, MPL, BART, CCT)
