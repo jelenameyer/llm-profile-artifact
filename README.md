@@ -13,7 +13,7 @@ Code to reproduce the data generation as well as all analyses, figures, and tabl
 
 | You want to...                                 | Do this                         | Needs                |
 | ---------------------------------------------- | ------------------------------- | -------------------- |
-| **Reproduce every figure & table** (default)   | `download_data.py`, then run the analysis scripts | Python, ~590 MB data |
+| **Reproduce every figure & table** (default)   | `python run_all.py` (one command) | Python, ~590 MB data |
 | Re-run preprocessing from raw responses        | `download_data.py --raw`, then the preprocessing scripts | Python, ~10 GB data  |
 | **Re-generate the LLM data from scratch**      | see [Data generation](#data-generation) | GPUs + paid API keys |
 
@@ -25,20 +25,39 @@ analysis: no API keys, no GPUs, no model downloads required.
 ## Quickstart (reproduce the analysis)
 
 ```bash
-# 1. Environment (tested with Python 3.11)
-python3.11 -m venv .venv && source .venv/bin/activate
+# 1. Environment — needs Python 3.11 (tested with 3.11.9). Check your version first:
+python3 --version          # should report 3.11.x; if not, see the note below
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# 2. Download the cleaned data from OSF
-python download_data.py
+# 2. Download the data and reproduce every figure and table, in one command:
+python run_all.py
 ```
 
-Then run the analysis scripts. Outputs go to [`analysis/results/`](analysis/results/). The
-analysis is one folder per Results section under
-[`analysis/src/analysis/`](analysis/src/analysis/) — run the scripts in numeric order
-within each. For example, to reproduce Table 1:
+> If `python3` is not 3.11 on your machine, point the venv at a 3.11 interpreter explicitly,
+> then re-run the two commands above (`python3 -m venv .venv && source .venv/bin/activate`).
+> - **pyenv:** `pyenv install -s 3.11.9 && pyenv local 3.11.9` (`-s` skips the prompt if 3.11.9
+>   is already installed); confirm with `python3 --version`.
+> - **conda:** `conda create -n llm-artifact python=3.11 && conda activate llm-artifact`
+>   (with conda you can skip the `venv` step — the conda env already isolates packages).
+
+[`run_all.py`](run_all.py) downloads the cleaned data from OSF (via
+[`download_data.py`](download_data.py)) and then runs every analysis script in paper order,
+writing all outputs to [`analysis/results/`](analysis/results/). If the data is already
+downloaded, use `python run_all.py --skip-download`.
+
+Two outputs — the risk forward–reverse SI table and the profile-instability figure (Fig 4)
+— additionally need two original Frey et al. (2017) files that are not redistributed here
+(see [Data](#data) → *Human data*). Without them, `run_all.py` **skips** those two scripts; add the files and
+re-run to fill them in.
+
+To run a **single** figure or table instead, the analysis is organized as one folder per
+Results section under [`analysis/src/analysis/`](analysis/src/analysis/); run a script from
+within its folder. For example, to reproduce Table 1:
 
 ```bash
+# 2b. (optional) download only, then run one script
+python download_data.py
 cd analysis/src/analysis/01_bias_not_trait
 python 02_forward_reverse_corr_table.py
 ```
@@ -53,6 +72,7 @@ To re-run preprocessing from the raw responses, fetch the raw tier
 
 ```
 .
+├── run_all.py                # download data + reproduce every figure & table
 ├── download_data.py          # fetch data from OSF into analysis/data/
 ├── requirements.txt          # analysis dependencies
 ├── requirements-generation.txt  # extra dependencies to re-generate LLM data
@@ -95,10 +115,18 @@ python download_data.py --raw           # intermediate + raw
 python download_data.py --all           # everything
 ```
 
-**Human data.** To reproduce preprocessing from scratch you also need the original human datasets 
-[`Frey et al. (2017)`](https://osf.io/rce7g/overview) and
+**Human data.** The original human datasets are not redistributed here; obtain them from
+their original sources: [`Frey et al. (2017)`](https://osf.io/rce7g/overview) and
 [`Johnson et al. (2014)`](https://osf.io/tbmh5/overview). Place them in
 `analysis/data/raw/ipipneo300_data/human/` and `analysis/data/raw/risk_data/human/`.
+They are needed to re-run preprocessing from scratch.
+
+Two **analysis** scripts also read original Frey files directly (for the per-trial LOT/DFD
+keying, which the cleaned data does not carry): `lotteries.csv` and `dfd_perprob.csv`. To
+reproduce the risk forward–reverse SI table and the profile-instability figure (Fig 4),
+download those two files from [Frey et al. (2017)](https://osf.io/rce7g/overview) and place
+them in `analysis/data/raw/risk_data/orig_human_data/`. If they are absent, the two scripts
+skip with a message instead of failing.
 
 ---
 
