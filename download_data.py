@@ -18,6 +18,10 @@ Tiers
   * survey_data   (~200 MB)  per-participant prompts for the hybrid generation path.
                              Only needed to re-generate data. Use ``--survey-data``.
 
+Every run except ``--tier survey_data`` also fetches two small original Frey et al. (2017)
+source files (lotteries.csv, dfd_perprob.csv) that two analysis scripts read directly. These
+are pulled from the *public* Frey OSF project, not re-hosted here.
+
 Usage
 -----
     python download_data.py                  # intermediate only (default)
@@ -52,15 +56,26 @@ TIERS = {
     "survey_data":  ("survey_data",  REPO_ROOT / "data_generation" / "hybrid"),
 }
 
+# Two original Frey et al. (2017) files that two analysis scripts read directly (for
+# the per-trial LOT/DFD keying the cleaned data does not carry). We do not re-host these;
+# they are fetched straight from the public Frey OSF project. Maps {path on that project:
+# local filename}. Paths verified against the rce7g "main" sample.
+FREY_OSF_PROJECT_ID = "rce7g"
+FREY_FILES = {
+    "/data/main/lotteries/lotteries.csv": "lotteries.csv",
+    "/data/main/dfd/dfd_perprob.csv":     "dfd_perprob.csv",
+}
+FREY_DEST_DIR = REPO_ROOT / "analysis" / "data" / "raw" / "risk_data" / "orig_human_data"
 
-def _osf_storage():
+
+def _osf_storage(project_id: str = OSF_PROJECT_ID, use_token: bool = True):
     try:
         from osfclient import OSF
     except ImportError:
         sys.exit("osfclient is not installed. Run:  pip install osfclient")
-    token = os.environ.get("OSF_TOKEN")  # only needed while the project is private
+    token = os.environ.get("OSF_TOKEN") if use_token else None  # token only for our private project
     osf = OSF(token=token) if token else OSF()
-    return osf.project(OSF_PROJECT_ID).storage("osfstorage")
+    return osf.project(project_id).storage("osfstorage")
 
 
 def download_tier(tier: str, storage, force: bool = False) -> None:
@@ -82,6 +97,28 @@ def download_tier(tier: str, storage, force: bool = False) -> None:
         print(f"[warn] no files found under osfstorage/{osf_folder}/ -- is it uploaded?")
     else:
         print(f"[done] {tier}: {n} files under {local_base.relative_to(REPO_ROOT)}/{osf_folder}/")
+
+
+def download_frey_files(force: bool = False) -> None:
+    """Fetch the two Frey et al. (2017) source files from the public Frey OSF project."""
+    storage = _osf_storage(FREY_OSF_PROJECT_ID, use_token=False)
+    remaining = dict(FREY_FILES)
+    for f in storage.files:
+        if not remaining:
+            break
+        dest_name = remaining.pop(f.path, None)
+        if dest_name is None:
+            continue
+        target = FREY_DEST_DIR / dest_name
+        if target.exists() and not force:
+            print(f"  [Frey OSF] already have {target.relative_to(REPO_ROOT)}")
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        print(f"  [Frey OSF] {f.path} -> {target.relative_to(REPO_ROOT)}")
+        with open(target, "wb") as fh:
+            f.write_to(fh)
+    for path in remaining:
+        print(f"[warn] not found on Frey OSF project {FREY_OSF_PROJECT_ID}: {path}")
 
 
 def main() -> None:
@@ -115,6 +152,13 @@ def main() -> None:
     for tier in tiers:
         print(f"  downloading '{tier}' on OSF")
         download_tier(tier, storage, force=args.force)
+
+    # Two analysis scripts read original Frey et al. (2017) files directly; pull them
+    # straight from the public Frey OSF project (not re-hosted here). Skipped on a
+    # survey-data-only run, which is unrelated to the analysis.
+    if args.tier != "survey_data":
+        print(f"  downloading Frey et al. (2017) source files from OSF ({FREY_OSF_PROJECT_ID})")
+        download_frey_files(force=args.force)
 
 
 if __name__ == "__main__":

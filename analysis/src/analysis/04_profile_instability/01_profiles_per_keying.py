@@ -59,14 +59,14 @@ HUMAN_IPIP_CSV = (
 # panels — the per-person risk file only stores the content score (chose risky).
 HUMAN_LOT_SRC = ROOT / "analysis/data/raw/risk_data/orig_human_data/lotteries.csv"
 HUMAN_DFD_SRC = ROOT / "analysis/data/raw/risk_data/orig_human_data/dfd_perprob.csv"
-# These two are original Frey et al. (2017) files, not redistributed here (see README,
-# "Human data"). They are required for the human LOT/DFD points; skip if absent.
+# These two are original Frey et al. (2017) files, not re-hosted here but fetched from the
+# public Frey OSF project by download_data.py. Required for the human LOT/DFD points.
 _missing = [p.name for p in (HUMAN_LOT_SRC, HUMAN_DFD_SRC) if not p.exists()]
 if _missing:
     print(
-        f"[skip] needs original Frey et al. (2017) data not redistributed here: {', '.join(_missing)}.\n"
-        "       Download from https://osf.io/rce7g/ and place under\n"
-        "       analysis/data/raw/risk_data/orig_human_data/, then re-run.",
+        f"[skip] missing original Frey et al. (2017) data: {', '.join(_missing)} (normally\n"
+        "       fetched by download_data.py). Run `python download_data.py` (or\n"
+        "       python run_all.py), then re-run. Skipping for now.",
         file=sys.stderr,
     )
     sys.exit(77)

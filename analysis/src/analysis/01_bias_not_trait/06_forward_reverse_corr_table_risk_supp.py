@@ -11,14 +11,14 @@ import numpy as np
 import pandas as pd
 from utils import corrs_table_from_conditions, to_latex_table, format_ci_cell
 
-# The LOT human rows are rebuilt from the original per-trial Frey lottery data, which
-# is not shipped with this repo (see README, "Human data"). Skip if it is missing.
+# The LOT human rows are rebuilt from the original per-trial Frey lottery data, which is
+# not re-hosted here but fetched from the public Frey OSF project by download_data.py.
 LOT_SRC = Path("../../../data/raw/risk_data/orig_human_data/lotteries.csv")
 if not LOT_SRC.exists():
     print(
-        f"[skip] needs original Frey et al. (2017) data not redistributed here: {LOT_SRC.name}.\n"
-        "       Download from https://osf.io/rce7g/ and place it at\n"
-        f"       analysis/data/raw/risk_data/orig_human_data/{LOT_SRC.name}, then re-run.",
+        f"[skip] missing {LOT_SRC.name} (original Frey et al. 2017 data, normally fetched by\n"
+        "       download_data.py). Run `python download_data.py` (or python run_all.py),\n"
+        "       then re-run. Skipping for now.",
         file=sys.stderr,
     )
     sys.exit(77)
