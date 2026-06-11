@@ -1,0 +1,8 @@
+{"id": 1, "s1": "4 points (80%) or 0 points (20%)", "s2": "3 points (100%)", "gamble_id": "he04_1"}
+{"id": 2,  "s1": "4 points (20%) or 0 points (80%)", "s2": "3 points (25%) or 0 points (75%)", "gamble_id": "he04_2"}
+{"id": 3,  "s1": "-3 points (100%) or 0 points (0%)", "s2": "-32 points (10%) or 0 points (90%)", "gamble_id": "he04_3"}
+{"id": 4,  "s1": "-3 points (100%) or 0 points (0%)", "s2": "-4 points (80%) or 0 points (20%)", "gamble_id": "he04_4"}
+{"id": 5,  "s1": "32 points (10%) or 0 points (90%)", "s2": "3 points (100%)", "gamble_id": "he04_5"}
+{"id": 6,  "s1": "32 points (2.5%) or 0 points (97.5%)", "s2": "3 points (25%) or 0 points (75%)", "gamble_id": "he04_6"}
+{"id": 7,  "s1": "-3 points (25%) or 0 points (75%)", "s2": "-4 points (20%) or 0 points (80%)", "gamble_id": "he04_2inv"}
+{"id": 8,  "s1": " -3 points (25%) or 0 points (75%)", "s2": "-32 points (2.5%) or 0 points (97.5%)", "gamble_id": "he04_6inv"}

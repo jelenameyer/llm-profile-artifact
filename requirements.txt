@@ -1,0 +1,25 @@
+# Requirements for reproducing the ANALYSIS (preprocessing + figures + tables).
+# Lightweight set: no GPU / deep-learning stack needed.
+# For re-generating LLM data, additionally install requirements-generation.txt.
+#
+# Tested with Python 3.11.13. Versions below are the ones used to produce the
+# published results -- pin to these for exact reproduction.
+#
+#   python3.11 -m venv .venv && source .venv/bin/activate
+#   pip install -r requirements.txt
+
+pandas==2.3.2
+numpy==1.26.4
+scipy==1.16.1
+matplotlib==3.10.6
+seaborn==0.13.2
+adjustText==1.3.0     # non-overlapping point labels in scatter figures
+pingouin==0.5.5       # Cronbach's alpha / reliability stats
+statsmodels==0.14.5
+
+# Notebook execution (the preprocessing scripts 04/05/07 are .ipynb)
+nbconvert==7.16.6
+ipykernel             # required by `jupyter nbconvert --execute`
+
+# Data download from OSF (download_data.py)
+osfclient

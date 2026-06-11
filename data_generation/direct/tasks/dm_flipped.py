@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""
+DM task (HF version). FLIPPED
+"""
+
+import re
+from base_functions import run_scale_task 
+
+# ============================================================
+# CONFIG
+# ============================================================
+
+DATA_PATH = "tasks/jsonl_data/dm_prompts.jsonl"
+TASK_FLIPPED = True
+
+
+# Define valid answers
+VALID_ANSWERS = ['1', '2', '3', '4']
+
+
+SYSTEM_PROMPT = (
+    "You are a helpful assistant responding to a psychometric questionnaire. "
+    "For each item, choose strictly one integer 1 to 4. "
+    "Do NOT explain your reasoning. Only output the number."
+)
+
+QUESTIONNAIRE_INSTRUCTION = (
+    "The following questions concern your behavior in the last 6 months. "
+    "Please indicate how often you have engaged in the following behaviors during the respective period of time. \n\n"
+    "Please use the scale from 2 to 4. Please use 1 = 'not applicable' whenever the activity/behavior does not apply to you (e.g., if you do not drive a car). \n"
+    "Carefully read each statement and provide your answer using the following scale: \n"
+    "1 = Not applicable\n"
+    "2 = Several times\n"
+    "3 = One or two times\n"
+    "4 = Never\n"
+    "For each statement strictly respond with one number (1 to 4). Statements: "
+)
+
+ANSWER_PATTERN = re.compile(r"\b([1234])\b")
+
+# ============================================================
+# FUNCTION TO RUN TASK
+# ============================================================
+
+
+def run_task(model, tokenizer, outlines_model, model_key: str, data_file=None):
+    return run_scale_task(
+        model=model,
+        tokenizer=tokenizer,
+        outlines_model=outlines_model,
+        model_key=model_key,
+        data_path=(data_file or DATA_PATH),
+        system_prompt=SYSTEM_PROMPT,
+        questionnaire_instruction=QUESTIONNAIRE_INSTRUCTION,
+        valid_answers=VALID_ANSWERS,
+        answer_pattern=ANSWER_PATTERN,
+        task_flipped=TASK_FLIPPED,
+    )
+
+
+def get_task_info():
+    """Task metadata for introspection."""
+    return {
+        "name": "DM",
+        "description": "Dm scale with outlines-constrained generation",
+        "valid_answers": VALID_ANSWERS,
+        "output_columns": [
+            "model", "item_id", "item_text", "context_mode", "flipped", "model_answer",
+            *[f"logit_{ans}" for ans in VALID_ANSWERS],
+            *[f"prob_{ans}" for ans in VALID_ANSWERS],
+        ],
+    }
+

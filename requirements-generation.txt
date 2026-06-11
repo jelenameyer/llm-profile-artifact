@@ -1,0 +1,29 @@
+# Extra requirements for RE-GENERATING the LLM data (data_generation/).
+# Not needed to reproduce the analysis from the OSF data.
+#
+# This is a SEPARATE environment from the analysis one. Per the paper SI, open-source
+# inference was run on Python 3.13 with the stack below; the analysis (requirements.txt)
+# was run on Python 3.11. Set up generation in its own env rather than layering on top:
+#
+#   python3.13 -m venv .venv-gen && source .venv-gen/bin/activate
+#   pip install -r requirements-generation.txt
+#
+# NOTE on transformers versions (open-source models are version-sensitive):
+#   * Default / most models:        transformers==5.0.0.dev0  (pre-release dev build;
+#                                    exact commit hash recorded with the released code)
+#   * All Phi models:                transformers==4.42.3   (install in a separate env)
+#   * gpt-oss-20b:                   also needs OpenAI's MXFP4 kernels package to keep
+#                                    native quantization (avoids bf16 dequant OOMs)
+
+pandas==2.3.3
+torch==2.8.0
+transformers==5.0.0.dev0
+outlines==1.2.8          # constrained decoding to valid Likert answers
+accelerate>=0.24.0
+tiktoken
+protobuf
+sentencepiece
+
+# Proprietary APIs are called directly via Python's standard-library urllib.request
+# (see model_manager_native_apis.py) -- NO vendor SDKs are required. API keys are read
+# from environment variables (see the "Data generation" section of the top-level README.md).

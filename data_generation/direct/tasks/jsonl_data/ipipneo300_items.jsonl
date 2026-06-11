@@ -1,0 +1,300 @@
+{"id": 1, "item": "Worry about things.", "sign": "+N1", "facet": "Anxiety"}
+{"id": 2, "item": "Make friends easily.", "sign": "+E1", "facet": "Friendliness"}
+{"id": 3, "item": "Have a vivid imagination.", "sign": "+O1", "facet": "Imagination"}
+{"id": 4, "item": "Trust others.", "sign": "+A1", "facet": "Trust"}
+{"id": 5, "item": "Complete tasks successfully.", "sign": "+C1", "facet": "Self-Efficacy"}
+{"id": 6, "item": "Get angry easily.", "sign": "+N2", "facet": "Anger"}
+{"id": 7, "item": "Love large parties.", "sign": "+E2", "facet": "Gregariousness"}
+{"id": 8, "item": "Believe in the importance of art.", "sign": "+O2", "facet": "Artistic Interests"}
+{"id": 9, "item": "Would never cheat on my taxes.", "sign": "+A2", "facet": "Morality"}
+{"id": 10, "item": "Like order.", "sign": "+C2", "facet": "Orderliness"}
+{"id": 11, "item": "Often feel blue.", "sign": "+N3", "facet": "Depression"}
+{"id": 12, "item": "Take charge.", "sign": "+E3", "facet": "Assertiveness"}
+{"id": 13, "item": "Experience my emotions intensely.", "sign": "+O3", "facet": "Emotionality"}
+{"id": 14, "item": "Make people feel welcome.", "sign": "+A3", "facet": "Altruism"}
+{"id": 15, "item": "Try to follow the rules.", "sign": "+C3", "facet": "Dutifulness"}
+{"id": 16, "item": "Am easily intimidated.", "sign": "+N4", "facet": "Self-Consciousness"}
+{"id": 17, "item": "Am always busy.", "sign": "+E4", "facet": "Activity Level"}
+{"id": 18, "item": "Prefer variety to routine.", "sign": "+O4", "facet": "Adventurousness"}
+{"id": 19, "item": "Am easy to satisfy.", "sign": "+A4", "facet": "Cooperation"}
+{"id": 20, "item": "Go straight for the goal.", "sign": "+C4", "facet": "Achievement-Striving"}
+{"id": 21, "item": "Often eat too much.", "sign": "+N5", "facet": "Immoderation"}
+{"id": 22, "item": "Love excitement.", "sign": "+E5", "facet": "Excitement-Seeking"}
+{"id": 23, "item": "Like to solve complex problems.", "sign": "+O5", "facet": "Intellect"}
+{"id": 24, "item": "Dislike being the center of attention.", "sign": "+A5", "facet": "Modesty"}
+{"id": 25, "item": "Get chores done right away.", "sign": "+C5", "facet": "Self-Discipline"}
+{"id": 26, "item": "Panic easily.", "sign": "+N6", "facet": "Vulnerability"}
+{"id": 27, "item": "Radiate joy.", "sign": "+E6", "facet": "Cheerfulness"}
+{"id": 28, "item": "Tend to vote for liberal political candidates.", "sign": "+O6", "facet": "Liberalism"}
+{"id": 29, "item": "Sympathize with the homeless.", "sign": "+A6", "facet": "Sympathy"}
+{"id": 30, "item": "Avoid mistakes.", "sign": "+C6", "facet": "Cautiousness"}
+{"id": 31, "item": "Fear for the worst.", "sign": "+N1", "facet": "Anxiety"}
+{"id": 32, "item": "Warm up quickly to others.", "sign": "+E1", "facet": "Friendliness"}
+{"id": 33, "item": "Enjoy wild flights of fantasy.", "sign": "+O1", "facet": "Imagination"}
+{"id": 34, "item": "Believe that others have good intentions.", "sign": "+A1", "facet": "Trust"}
+{"id": 35, "item": "Excel in what I do.", "sign": "+C1", "facet": "Self-Efficacy"}
+{"id": 36, "item": "Get irritated easily.", "sign": "+N2", "facet": "Anger"}
+{"id": 37, "item": "Talk to a lot of different people at parties.", "sign": "+E2", "facet": "Gregariousness"}
+{"id": 38, "item": "Like music.", "sign": "+O2", "facet": "Artistic Interests"}
+{"id": 39, "item": "Stick to the rules.", "sign": "+A2", "facet": "Morality"}
+{"id": 40, "item": "Like to tidy up.", "sign": "+C2", "facet": "Orderliness"}
+{"id": 41, "item": "Dislike myself.", "sign": "+N3", "facet": "Depression"}
+{"id": 42, "item": "Try to lead others.", "sign": "+E3", "facet": "Assertiveness"}
+{"id": 43, "item": "Feel others' emotions.", "sign": "+O3", "facet": "Emotionality"}
+{"id": 44, "item": "Anticipate the needs of others.", "sign": "+A3", "facet": "Altruism"}
+{"id": 45, "item": "Keep my promises.", "sign": "+C3", "facet": "Dutifulness"}
+{"id": 46, "item": "Am afraid that I will do the wrong thing.", "sign": "+N4", "facet": "Self-Consciousness"}
+{"id": 47, "item": "Am always on the go.", "sign": "+E4", "facet": "Activity Level"}
+{"id": 48, "item": "Like to visit new places.", "sign": "+O4", "facet": "Adventurousness"}
+{"id": 49, "item": "Can't stand confrontations.", "sign": "+A4", "facet": "Cooperation"}
+{"id": 50, "item": "Work hard.", "sign": "+C4", "facet": "Achievement-Striving"}
+{"id": 51, "item": "Don't know why I do some of the things I do.", "sign": "+N5", "facet": "Immoderation"}
+{"id": 52, "item": "Seek adventure.", "sign": "+E5", "facet": "Excitement-Seeking"}
+{"id": 53, "item": "Love to read challenging material.", "sign": "+O5", "facet": "Intellect"}
+{"id": 54, "item": "Dislike talking about myself.", "sign": "+A5", "facet": "Modesty"}
+{"id": 55, "item": "Am always prepared.", "sign": "+C5", "facet": "Self-Discipline"}
+{"id": 56, "item": "Become overwhelmed by events.", "sign": "+N6", "facet": "Vulnerability"}
+{"id": 57, "item": "Have a lot of fun.", "sign": "+E6", "facet": "Cheerfulness"}
+{"id": 58, "item": "Believe that there is no absolute right or wrong.", "sign": "+O6", "facet": "Liberalism"}
+{"id": 59, "item": "Feel sympathy for those who are worse off than myself.", "sign": "+A6", "facet": "Sympathy"}
+{"id": 60, "item": "Choose my words with care.", "sign": "+C6", "facet": "Cautiousness"}
+{"id": 61, "item": "Am afraid of many things.", "sign": "+N1", "facet": "Anxiety"}
+{"id": 62, "item": "Feel comfortable around people.", "sign": "+E1", "facet": "Friendliness"}
+{"id": 63, "item": "Love to daydream.", "sign": "+O1", "facet": "Imagination"}
+{"id": 64, "item": "Trust what people say.", "sign": "+A1", "facet": "Trust"}
+{"id": 65, "item": "Handle tasks smoothly.", "sign": "+C1", "facet": "Self-Efficacy"}
+{"id": 66, "item": "Get upset easily.", "sign": "+N2", "facet": "Anger"}
+{"id": 67, "item": "Enjoy being part of a group.", "sign": "+E2", "facet": "Gregariousness"}
+{"id": 68, "item": "See beauty in things that others might not notice.", "sign": "+O2", "facet": "Artistic Interests"}
+{"id": 69, "item": "Use flattery to get ahead.", "sign": "-A2", "facet": "Morality"}
+{"id": 70, "item": "Want everything to be \"just right.\"", "sign": "+C2", "facet": "Orderliness"}
+{"id": 71, "item": "Am often down in the dumps.", "sign": "+N3", "facet": "Depression"}
+{"id": 72, "item": "Can talk others into doing things.", "sign": "+E3", "facet": "Assertiveness"}
+{"id": 73, "item": "Am passionate about causes.", "sign": "+O3", "facet": "Emotionality"}
+{"id": 74, "item": "Love to help others.", "sign": "+A3", "facet": "Altruism"}
+{"id": 75, "item": "Pay my bills on time.", "sign": "+C3", "facet": "Dutifulness"}
+{"id": 76, "item": "Find it difficult to approach others.", "sign": "+N4", "facet": "Self-Consciousness"}
+{"id": 77, "item": "Do a lot in my spare time.", "sign": "+E4", "facet": "Activity Level"}
+{"id": 78, "item": "Interested in many things.", "sign": "+O4", "facet": "Adventurousness"}
+{"id": 79, "item": "Hate to seem pushy.", "sign": "+A4", "facet": "Cooperation"}
+{"id": 80, "item": "Turn plans into actions.", "sign": "+C4", "facet": "Achievement-Striving"}
+{"id": 81, "item": "Do things I later regret.", "sign": "+N5", "facet": "Immoderation"}
+{"id": 82, "item": "Love action.", "sign": "+E5", "facet": "Excitement-Seeking"}
+{"id": 83, "item": "Have a rich vocabulary.", "sign": "+O5", "facet": "Intellect"}
+{"id": 84, "item": "Consider myself an average person.", "sign": "+A5", "facet": "Modesty"}
+{"id": 85, "item": "Start tasks right away.", "sign": "+C5", "facet": "Self-Discipline"}
+{"id": 86, "item": "Feel that I'm unable to deal with things.", "sign": "+N6", "facet": "Vulnerability"}
+{"id": 87, "item": "Express childlike joy.", "sign": "+E6", "facet": "Cheerfulness"}
+{"id": 88, "item": "Believe that criminals should receive help rather than punishment.", "sign": "+O6", "facet": "Liberalism"}
+{"id": 89, "item": "Value cooperation over competition.", "sign": "+A6", "facet": "Sympathy"}
+{"id": 90, "item": "Stick to my chosen path.", "sign": "+C6", "facet": "Cautiousness"}
+{"id": 91, "item": "Get stressed out easily.", "sign": "+N1", "facet": "Anxiety"}
+{"id": 92, "item": "Act comfortably with others.", "sign": "+E1", "facet": "Friendliness"}
+{"id": 93, "item": "Like to get lost in thought.", "sign": "+O1", "facet": "Imagination"}
+{"id": 94, "item": "Believe that people are basically moral.", "sign": "+A1", "facet": "Trust"}
+{"id": 95, "item": "Am sure of my ground.", "sign": "+C1", "facet": "Self-Efficacy"}
+{"id": 96, "item": "Am often in a bad mood.", "sign": "+N2", "facet": "Anger"}
+{"id": 97, "item": "Involve others in what I am doing.", "sign": "+E2", "facet": "Gregariousness"}
+{"id": 98, "item": "Love flowers.", "sign": "+O2", "facet": "Artistic Interests"}
+{"id": 99, "item": "Use others for my own ends.", "sign": "-A2", "facet": "Morality"}
+{"id": 100, "item": "Love order and regularity.", "sign": "+C2", "facet": "Orderliness"}
+{"id": 101, "item": "Have a low opinion of myself.", "sign": "+N3", "facet": "Depression"}
+{"id": 102, "item": "Seek to influence others.", "sign": "+E3", "facet": "Assertiveness"}
+{"id": 103, "item": "Enjoy examining myself and my life.", "sign": "+O3", "facet": "Emotionality"}
+{"id": 104, "item": "Am concerned about others.", "sign": "+A3", "facet": "Altruism"}
+{"id": 105, "item": "Tell the truth.", "sign": "+C3", "facet": "Dutifulness"}
+{"id": 106, "item": "Am afraid to draw attention to myself.", "sign": "+N4", "facet": "Self-Consciousness"}
+{"id": 107, "item": "Can manage many things at the same time.", "sign": "+E4", "facet": "Activity Level"}
+{"id": 108, "item": "Like to begin new things.", "sign": "+O4", "facet": "Adventurousness"}
+{"id": 109, "item": "Have a sharp tongue.", "sign": "-A4", "facet": "Cooperation"}
+{"id": 110, "item": "Plunge into tasks with all my heart.", "sign": "+C4", "facet": "Achievement-Striving"}
+{"id": 111, "item": "Go on binges.", "sign": "+N5", "facet": "Immoderation"}
+{"id": 112, "item": "Enjoy being part of a loud crowd.", "sign": "+E5", "facet": "Excitement-Seeking"}
+{"id": 113, "item": "Can handle a lot of information.", "sign": "+O5", "facet": "Intellect"}
+{"id": 114, "item": "Seldom toot my own horn.", "sign": "+A5", "facet": "Modesty"}
+{"id": 115, "item": "Get to work at once.", "sign": "+C5", "facet": "Self-Discipline"}
+{"id": 116, "item": "Can't make up my mind.", "sign": "+N6", "facet": "Vulnerability"}
+{"id": 117, "item": "Laugh my way through life.", "sign": "+E6", "facet": "Cheerfulness"}
+{"id": 118, "item": "Believe in one true religion.", "sign": "-O6", "facet": "Liberalism"}
+{"id": 119, "item": "Suffer from others' sorrows.", "sign": "+A6", "facet": "Sympathy"}
+{"id": 120, "item": "Jump into things without thinking.", "sign": "-C6", "facet": "Cautiousness"}
+{"id": 121, "item": "Get caught up in my problems.", "sign": "+N1", "facet": "Anxiety"}
+{"id": 122, "item": "Cheer people up.", "sign": "+E1", "facet": "Friendliness"}
+{"id": 123, "item": "Indulge in my fantasies.", "sign": "+O1", "facet": "Imagination"}
+{"id": 124, "item": "Believe in human goodness.", "sign": "+A1", "facet": "Trust"}
+{"id": 125, "item": "Come up with good solutions.", "sign": "+C1", "facet": "Self-Efficacy"}
+{"id": 126, "item": "Lose my temper.", "sign": "+N2", "facet": "Anger"}
+{"id": 127, "item": "Love surprise parties.", "sign": "+E2", "facet": "Gregariousness"}
+{"id": 128, "item": "Enjoy the beauty of nature.", "sign": "+O2", "facet": "Artistic Interests"}
+{"id": 129, "item": "Know how to get around the rules.", "sign": "-A2", "facet": "Morality"}
+{"id": 130, "item": "Do things according to a plan.", "sign": "+C2", "facet": "Orderliness"}
+{"id": 131, "item": "Have frequent mood swings.", "sign": "+N3", "facet": "Depression"}
+{"id": 132, "item": "Take control of things.", "sign": "+E3", "facet": "Assertiveness"}
+{"id": 133, "item": "Try to understand myself.", "sign": "+O3", "facet": "Emotionality"}
+{"id": 134, "item": "Have a good word for everyone.", "sign": "+A3", "facet": "Altruism"}
+{"id": 135, "item": "Listen to my conscience.", "sign": "+C3", "facet": "Dutifulness"}
+{"id": 136, "item": "Only feel comfortable with friends.", "sign": "+N4", "facet": "Self-Consciousness"}
+{"id": 137, "item": "React quickly.", "sign": "+E4", "facet": "Activity Level"}
+{"id": 138, "item": "Prefer to stick with things that I know.", "sign": "-O4", "facet": "Adventurousness"}
+{"id": 139, "item": "Contradict others.", "sign": "-A4", "facet": "Cooperation"}
+{"id": 140, "item": "Do more than what's expected of me.", "sign": "+C4", "facet": "Achievement-Striving"}
+{"id": 141, "item": "Love to eat.", "sign": "+N5", "facet": "Immoderation"}
+{"id": 142, "item": "Enjoy being reckless.", "sign": "+E5", "facet": "Excitement-Seeking"}
+{"id": 143, "item": "Enjoy thinking about things.", "sign": "+O5", "facet": "Intellect"}
+{"id": 144, "item": "Believe that I am better than others.", "sign": "-A5", "facet": "Modesty"}
+{"id": 145, "item": "Carry out my plans.", "sign": "+C5", "facet": "Self-Discipline"}
+{"id": 146, "item": "Get overwhelmed by emotions.", "sign": "+N6", "facet": "Vulnerability"}
+{"id": 147, "item": "Love life.", "sign": "+E6", "facet": "Cheerfulness"}
+{"id": 148, "item": "Tend to vote for conservative political candidates.", "sign": "-O6", "facet": "Liberalism"}
+{"id": 149, "item": "Am not interested in other people's problems.", "sign": "-A6", "facet": "Sympathy"}
+{"id": 150, "item": "Make rash decisions.", "sign": "-C6", "facet": "Cautiousness"}
+{"id": 151, "item": "Am not easily bothered by things.", "sign": "-N1", "facet": "Anxiety"}
+{"id": 152, "item": "Am hard to get to know.", "sign": "-E1", "facet": "Friendliness"}
+{"id": 153, "item": "Spend time reflecting on things.", "sign": "+O1", "facet": "Imagination"}
+{"id": 154, "item": "Think that all will be well.", "sign": "+A1", "facet": "Trust"}
+{"id": 155, "item": "Know how to get things done.", "sign": "+C1", "facet": "Self-Efficacy"}
+{"id": 156, "item": "Rarely get irritated.", "sign": "-N2", "facet": "Anger"}
+{"id": 157, "item": "Prefer to be alone.", "sign": "-E2", "facet": "Gregariousness"}
+{"id": 158, "item": "Do not like art.", "sign": "-O2", "facet": "Artistic Interests"}
+{"id": 159, "item": "Cheat to get ahead.", "sign": "-A2", "facet": "Morality"}
+{"id": 160, "item": "Often forget to put things back in their proper place.", "sign": "-C2", "facet": "Orderliness"}
+{"id": 161, "item": "Feel desperate.", "sign": "+N3", "facet": "Depression"}
+{"id": 162, "item": "Wait for others to lead the way.", "sign": "-E3", "facet": "Assertiveness"}
+{"id": 163, "item": "Seldom get emotional.", "sign": "-O3", "facet": "Emotionality"}
+{"id": 164, "item": "Look down on others.", "sign": "-A3", "facet": "Altruism"}
+{"id": 165, "item": "Break rules.", "sign": "-C3", "facet": "Dutifulness"}
+{"id": 166, "item": "Stumble over my words.", "sign": "+N4", "facet": "Self-Consciousness"}
+{"id": 167, "item": "Like to take it easy.", "sign": "-E4", "facet": "Activity Level"}
+{"id": 168, "item": "Dislike changes.", "sign": "-O4", "facet": "Adventurousness"}
+{"id": 169, "item": "Love a good fight.", "sign": "-A4", "facet": "Cooperation"}
+{"id": 170, "item": "Set high standards for myself and others.", "sign": "+C4", "facet": "Achievement-Striving"}
+{"id": 171, "item": "Rarely overindulge.", "sign": "-N5", "facet": "Immoderation"}
+{"id": 172, "item": "Act wild and crazy.", "sign": "+E5", "facet": "Excitement-Seeking"}
+{"id": 173, "item": "Am not interested in abstract ideas.", "sign": "-O5", "facet": "Intellect"}
+{"id": 174, "item": "Think highly of myself.", "sign": "-A5", "facet": "Modesty"}
+{"id": 175, "item": "Find it difficult to get down to work.", "sign": "-C5", "facet": "Self-Discipline"}
+{"id": 176, "item": "Remain calm under pressure.", "sign": "-N6", "facet": "Vulnerability"}
+{"id": 177, "item": "Look at the bright side of life.", "sign": "+E6", "facet": "Cheerfulness"}
+{"id": 178, "item": "Believe that too much tax money goes to support artists.", "sign": "-O6", "facet": "Liberalism"}
+{"id": 179, "item": "Tend to dislike soft-hearted people.", "sign": "-A6", "facet": "Sympathy"}
+{"id": 180, "item": "Like to act on a whim.", "sign": "-C6", "facet": "Cautiousness"}
+{"id": 181, "item": "Am relaxed most of the time.", "sign": "-N1", "facet": "Anxiety"}
+{"id": 182, "item": "Often feel uncomfortable around others.", "sign": "-E1", "facet": "Friendliness"}
+{"id": 183, "item": "Seldom daydream.", "sign": "-O1", "facet": "Imagination"}
+{"id": 184, "item": "Distrust people.", "sign": "-A1", "facet": "Trust"}
+{"id": 185, "item": "Misjudge situations.", "sign": "-C1", "facet": "Self-Efficacy"}
+{"id": 186, "item": "Seldom get mad.", "sign": "-N2", "facet": "Anger"}
+{"id": 187, "item": "Want to be left alone.", "sign": "-E2", "facet": "Gregariousness"}
+{"id": 188, "item": "Do not like poetry.", "sign": "-O2", "facet": "Artistic Interests"}
+{"id": 189, "item": "Put people under pressure.", "sign": "-A2", "facet": "Morality"}
+{"id": 190, "item": "Leave a mess in my room.", "sign": "-C2", "facet": "Orderliness"}
+{"id": 191, "item": "Feel that my life lacks direction.", "sign": "+N3", "facet": "Depression"}
+{"id": 192, "item": "Keep in the background.", "sign": "-E3", "facet": "Assertiveness"}
+{"id": 193, "item": "Am not easily affected by my emotions.", "sign": "-O3", "facet": "Emotionality"}
+{"id": 194, "item": "Am indifferent to the feelings of others.", "sign": "-A3", "facet": "Altruism"}
+{"id": 195, "item": "Break my promises.", "sign": "-C3", "facet": "Dutifulness"}
+{"id": 196, "item": "Am not embarrassed easily.", "sign": "-N4", "facet": "Self-Consciousness"}
+{"id": 197, "item": "Like to take my time.", "sign": "-E4", "facet": "Activity Level"}
+{"id": 198, "item": "Don't like the idea of change.", "sign": "-O4", "facet": "Adventurousness"}
+{"id": 199, "item": "Yell at people.", "sign": "-A4", "facet": "Cooperation"}
+{"id": 200, "item": "Demand quality.", "sign": "+C4", "facet": "Achievement-Striving"}
+{"id": 201, "item": "Easily resist temptations.", "sign": "-N5", "facet": "Immoderation"}
+{"id": 202, "item": "Willing to try anything once.", "sign": "+E5", "facet": "Excitement-Seeking"}
+{"id": 203, "item": "Avoid philosophical discussions.", "sign": "-O5", "facet": "Intellect"}
+{"id": 204, "item": "Have a high opinion of myself.", "sign": "-A5", "facet": "Modesty"}
+{"id": 205, "item": "Waste my time.", "sign": "-C5", "facet": "Self-Discipline"}
+{"id": 206, "item": "Can handle complex problems.", "sign": "-N6", "facet": "Vulnerability"}
+{"id": 207, "item": "Laugh aloud.", "sign": "+E6", "facet": "Cheerfulness"}
+{"id": 208, "item": "Believe laws should be strictly enforced.", "sign": "-O6", "facet": "Liberalism"}
+{"id": 209, "item": "Believe in an eye for an eye.", "sign": "-A6", "facet": "Sympathy"}
+{"id": 210, "item": "Rush into things.", "sign": "-C6", "facet": "Cautiousness"}
+{"id": 211, "item": "Am not easily disturbed by events.", "sign": "-N1", "facet": "Anxiety"}
+{"id": 212, "item": "Avoid contacts with others.", "sign": "-E1", "facet": "Friendliness"}
+{"id": 213, "item": "Do not have a good imagination.", "sign": "-O1", "facet": "Imagination"}
+{"id": 214, "item": "Suspect hidden motives in others.", "sign": "-A1", "facet": "Trust"}
+{"id": 215, "item": "Don't understand things.", "sign": "-C1", "facet": "Self-Efficacy"}
+{"id": 216, "item": "Am not easily annoyed.", "sign": "-N2", "facet": "Anger"}
+{"id": 217, "item": "Don't like crowded events.", "sign": "-E2", "facet": "Gregariousness"}
+{"id": 218, "item": "Do not enjoy going to art museums.", "sign": "-O2", "facet": "Artistic Interests"}
+{"id": 219, "item": "Pretend to be concerned for others.", "sign": "-A2", "facet": "Morality"}
+{"id": 220, "item": "Leave my belongings around.", "sign": "-C2", "facet": "Orderliness"}
+{"id": 221, "item": "Seldom feel blue.", "sign": "-N3", "facet": "Depression"}
+{"id": 222, "item": "Have little to say.", "sign": "-E3", "facet": "Assertiveness"}
+{"id": 223, "item": "Rarely notice my emotional reactions.", "sign": "-O3", "facet": "Emotionality"}
+{"id": 224, "item": "Make people feel uncomfortable.", "sign": "-A3", "facet": "Altruism"}
+{"id": 225, "item": "Get others to do my duties.", "sign": "-C3", "facet": "Dutifulness"}
+{"id": 226, "item": "Am comfortable in unfamiliar situations.", "sign": "-N4", "facet": "Self-Consciousness"}
+{"id": 227, "item": "Like a leisurely lifestyle.", "sign": "-E4", "facet": "Activity Level"}
+{"id": 228, "item": "Am a creature of habit.", "sign": "-O4", "facet": "Adventurousness"}
+{"id": 229, "item": "Insult people.", "sign": "-A4", "facet": "Cooperation"}
+{"id": 230, "item": "Am not highly motivated to succeed.", "sign": "-C4", "facet": "Achievement-Striving"}
+{"id": 231, "item": "Am able to control my cravings.", "sign": "-N5", "facet": "Immoderation"}
+{"id": 232, "item": "Seek danger.", "sign": "+E5", "facet": "Excitement-Seeking"}
+{"id": 233, "item": "Have difficulty understanding abstract ideas.", "sign": "-O5", "facet": "Intellect"}
+{"id": 234, "item": "Know the answers to many questions.", "sign": "-A5", "facet": "Modesty"}
+{"id": 235, "item": "Need a push to get started.", "sign": "-C5", "facet": "Self-Discipline"}
+{"id": 236, "item": "Know how to cope.", "sign": "-N6", "facet": "Vulnerability"}
+{"id": 237, "item": "Amuse my friends.", "sign": "+E6", "facet": "Cheerfulness"}
+{"id": 238, "item": "Believe that we coddle criminals too much.", "sign": "-O6", "facet": "Liberalism"}
+{"id": 239, "item": "Try not to think about the needy.", "sign": "-A6", "facet": "Sympathy"}
+{"id": 240, "item": "Do crazy things.", "sign": "-C6", "facet": "Cautiousness"}
+{"id": 241, "item": "Don't worry about things that have already happened.", "sign": "-N1", "facet": "Anxiety"}
+{"id": 242, "item": "Am not really interested in others.", "sign": "-E1", "facet": "Friendliness"}
+{"id": 243, "item": "Seldom get lost in thought.", "sign": "-O1", "facet": "Imagination"}
+{"id": 244, "item": "Am wary of others.", "sign": "-A1", "facet": "Trust"}
+{"id": 245, "item": "Have little to contribute.", "sign": "-C1", "facet": "Self-Efficacy"}
+{"id": 246, "item": "Keep my cool.", "sign": "-N2", "facet": "Anger"}
+{"id": 247, "item": "Avoid crowds.", "sign": "-E2", "facet": "Gregariousness"}
+{"id": 248, "item": "Do not like concerts.", "sign": "-O2", "facet": "Artistic Interests"}
+{"id": 249, "item": "Take advantage of others.", "sign": "-A2", "facet": "Morality"}
+{"id": 250, "item": "Am not bothered by messy people.", "sign": "-C2", "facet": "Orderliness"}
+{"id": 251, "item": "Feel comfortable with myself.", "sign": "-N3", "facet": "Depression"}
+{"id": 252, "item": "Don't like to draw attention to myself.", "sign": "-E3", "facet": "Assertiveness"}
+{"id": 253, "item": "Experience very few emotional highs and lows.", "sign": "-O3", "facet": "Emotionality"}
+{"id": 254, "item": "Turn my back on others.", "sign": "-A3", "facet": "Altruism"}
+{"id": 255, "item": "Do the opposite of what is asked.", "sign": "-C3", "facet": "Dutifulness"}
+{"id": 256, "item": "Am not bothered by difficult social situations.", "sign": "-N4", "facet": "Self-Consciousness"}
+{"id": 257, "item": "Let things proceed at their own pace.", "sign": "-E4", "facet": "Activity Level"}
+{"id": 258, "item": "Dislike new foods.", "sign": "-O4", "facet": "Adventurousness"}
+{"id": 259, "item": "Get back at others.", "sign": "-A4", "facet": "Cooperation"}
+{"id": 260, "item": "Do just enough work to get by.", "sign": "-C4", "facet": "Achievement-Striving"}
+{"id": 261, "item": "Never spend more than I can afford.", "sign": "-N5", "facet": "Immoderation"}
+{"id": 262, "item": "Would never go hang gliding or bungee jumping.", "sign": "-E5", "facet": "Excitement-Seeking"}
+{"id": 263, "item": "Am not interested in theoretical discussions.", "sign": "-O5", "facet": "Intellect"}
+{"id": 264, "item": "Boast about my virtues.", "sign": "-A5", "facet": "Modesty"}
+{"id": 265, "item": "Have difficulty starting tasks.", "sign": "-C5", "facet": "Self-Discipline"}
+{"id": 266, "item": "Readily overcome setbacks.", "sign": "-N6", "facet": "Vulnerability"}
+{"id": 267, "item": "Am not easily amused.", "sign": "-E6", "facet": "Cheerfulness"}
+{"id": 268, "item": "Believe that we should be tough on crime.", "sign": "-O6", "facet": "Liberalism"}
+{"id": 269, "item": "Believe people should fend for themselves.", "sign": "-A6", "facet": "Sympathy"}
+{"id": 270, "item": "Act without thinking.", "sign": "-C6", "facet": "Cautiousness"}
+{"id": 271, "item": "Adapt easily to new situations.", "sign": "-N1", "facet": "Anxiety"}
+{"id": 272, "item": "Keep others at a distance.", "sign": "-E1", "facet": "Friendliness"}
+{"id": 273, "item": "Have difficulty imagining things.", "sign": "-O1", "facet": "Imagination"}
+{"id": 274, "item": "Believe that people are essentially evil.", "sign": "-A1", "facet": "Trust"}
+{"id": 275, "item": "Don't see the consequences of things.", "sign": "-C1", "facet": "Self-Efficacy"}
+{"id": 276, "item": "Rarely complain.", "sign": "-N2", "facet": "Anger"}
+{"id": 277, "item": "Seek quiet.", "sign": "-E2", "facet": "Gregariousness"}
+{"id": 278, "item": "Do not enjoy watching dance performances.", "sign": "-O2", "facet": "Artistic Interests"}
+{"id": 279, "item": "Obstruct others' plans.", "sign": "-A2", "facet": "Morality"}
+{"id": 280, "item": "Am not bothered by disorder.", "sign": "-C2", "facet": "Orderliness"}
+{"id": 281, "item": "Am very pleased with myself.", "sign": "-N3", "facet": "Depression"}
+{"id": 282, "item": "Hold back my opinions.", "sign": "-E3", "facet": "Assertiveness"}
+{"id": 283, "item": "Don't understand people who get emotional.", "sign": "-O3", "facet": "Emotionality"}
+{"id": 284, "item": "Take no time for others.", "sign": "-A3", "facet": "Altruism"}
+{"id": 285, "item": "Misrepresent the facts.", "sign": "-C3", "facet": "Dutifulness"}
+{"id": 286, "item": "Am able to stand up for myself.", "sign": "-N4", "facet": "Self-Consciousness"}
+{"id": 287, "item": "React slowly.", "sign": "-E4", "facet": "Activity Level"}
+{"id": 288, "item": "Am attached to conventional ways.", "sign": "-O4", "facet": "Adventurousness"}
+{"id": 289, "item": "Hold a grudge.", "sign": "-A4", "facet": "Cooperation"}
+{"id": 290, "item": "Put little time and effort into my work.", "sign": "-C4", "facet": "Achievement-Striving"}
+{"id": 291, "item": "Never splurge.", "sign": "-N5", "facet": "Immoderation"}
+{"id": 292, "item": "Dislike loud music.", "sign": "-E5", "facet": "Excitement-Seeking"}
+{"id": 293, "item": "Avoid difficult reading material.", "sign": "-O5", "facet": "Intellect"}
+{"id": 294, "item": "Make myself the center of attention.", "sign": "-A5", "facet": "Modesty"}
+{"id": 295, "item": "Postpone decisions.", "sign": "-C5", "facet": "Self-Discipline"}
+{"id": 296, "item": "Am calm even in tense situations.", "sign": "-N6", "facet": "Vulnerability"}
+{"id": 297, "item": "Seldom joke around.", "sign": "-E6", "facet": "Cheerfulness"}
+{"id": 298, "item": "Like to stand during the national anthem.", "sign": "-O6", "facet": "Liberalism"}
+{"id": 299, "item": "Can't stand weak people.", "sign": "-A6", "facet": "Sympathy"}
+{"id": 300, "item": "Often make last-minute plans.", "sign": "-C6", "facet": "Cautiousness"}
