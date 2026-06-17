@@ -1,4 +1,4 @@
-# Apparent Psychological Profiles of Large Language Models are Largely a Measurement Artifact
+# Reliability and validity of human personality measures applied to LLMs
 
 Code to reproduce the data generation as well as all analyses, figures, and tables in
 **"Apparent Psychological Profiles of Large Language Models are Largely a Measurement Artifact"**
@@ -14,10 +14,10 @@ Code to reproduce the data generation as well as all analyses, figures, and tabl
 | You want to...                                 | Do this                         | Needs                |
 | ---------------------------------------------- | ------------------------------- | -------------------- |
 | **Reproduce every figure & table** (default)   | `python run_all.py` (one command) | Python, ~590 MB data |
-| Re-run preprocessing from raw responses        | `download_data.py --raw`, then the preprocessing scripts | Python, ~10 GB data  |
+| Re-run preprocessing from raw responses        | [request the source data](#requesting-the-source-data), then the preprocessing scripts | Python, ~10 GB data  |
 | **Re-generate the LLM data from scratch**      | see [Data generation](#data-generation) | GPUs + paid API keys |
 
-The default path downloads the cleaned (`intermediate`) data from OSF and runs the
+The default path downloads the cleaned (`data`) tier from OSF and runs the
 analysis: no API keys, no GPUs, no model downloads required.
 
 ---
@@ -63,9 +63,10 @@ cd analysis/src/analysis/01_bias_not_trait
 python 02_forward_reverse_corr_table.py
 ```
 
-To re-run preprocessing from the raw responses, fetch the raw tier
-(`python download_data.py --raw`) and run the scripts in
-[`analysis/src/preprocessing/`](analysis/src/preprocessing/) first.
+To re-run preprocessing from the raw responses, first
+[request the source data](#requesting-the-source-data) (it is not hosted on OSF),
+place it under `analysis/source/`, and run the scripts in
+[`analysis/src/preprocessing/`](analysis/src/preprocessing/).
 
 ---
 
@@ -88,7 +89,8 @@ To re-run preprocessing from the raw responses, fetch the raw tier
 │   │       ├── 02_capability_and_bias/    # trait/bias decomposition, Fig 2, size/provider
 │   │       ├── 03_orthogonality/          # reliability (Cronbach α) vs orthogonality, Fig 3
 │   │       └── 04_profile_instability/    # profile shift across keyings, Fig 4
-│   ├── data/                 # populated by download_data.py (git-ignored)
+│   ├── data/                 # cleaned data, populated by download_data.py (git-ignored)
+│   ├── source/               # raw responses (on request, not on OSF); git-ignored
 │   └── results/
 │       ├── figures/          # regenerated PDFs
 │       └── tables/           # regenerated CSV / LaTeX tables
@@ -106,15 +108,25 @@ All data is hosted on OSF as plain folder trees and fetched with
 
 | Tier           | Mirrored into                          | Size    | Needed for                       |
 | -------------- | -------------------------------------- | ------- | -------------------------------- |
-| `intermediate` | `analysis/data/intermediate/`          | ~590 MB | all figures/tables (default)     |
-| `raw`          | `analysis/data/raw/`                   | ~10 GB  | re-running preprocessing (01–07) |
+| `data`         | `analysis/data/`                       | ~590 MB | all figures/tables (default)     |
 | `survey_data`  | `data_generation/hybrid/survey_data/`  | ~200 MB | re-generating data (hybrid path) |
+| `source`       | `analysis/source/`                     | ~10 GB  | re-running preprocessing (01–07) — **not on OSF, [available on request](#requesting-the-source-data)** |
 
 ```bash
-python download_data.py                 # intermediate only
-python download_data.py --raw           # intermediate + raw
-python download_data.py --all           # everything
+python download_data.py                 # data tier only
+python download_data.py --survey-data   # data + generation prompts
+python download_data.py --all           # every OSF-hosted tier (data + survey_data)
+python download_data.py --source        # prints how to request the source data
 ```
+
+### Requesting the source data
+
+To keep the public archive manageable, the **source data** (the raw LLM responses, ~10 GB)
+is **not hosted on OSF**. It is available from the authors on request — email
+**wulff@mpib-berlin.mpg.de**. You only need it to re-run the preprocessing scripts
+(01–07) from scratch; the default analysis path uses the cleaned `data` tier and
+needs nothing else. Once received, place it under `analysis/source/` (preserving the
+folder structure) before running the preprocessing scripts.
 
 **Human data.** The original human datasets are not re-hosted here; they come from their
 original sources, [`Frey et al. (2017)`](https://osf.io/rce7g/overview) and
@@ -126,16 +138,18 @@ original sources, [`Frey et al. (2017)`](https://osf.io/rce7g/overview) and
   so the default analysis runs with no manual step.
 - To re-run **preprocessing** from scratch you need the *full* original datasets. Download
   them from the two sources above and place them in
-  `analysis/data/raw/ipipneo300_data/human/` and `analysis/data/raw/risk_data/human/`.
+  `analysis/source/ipipneo300_data/human/` and `analysis/source/risk_data/human/`.
 
 ---
 
 ## Data generation
 
-> You do **not** need to run this to reproduce the paper — the generated outputs are
-> published on OSF and fetched by `download_data.py`. This folder documents (and, with the
-> right hardware and API-keys, reproduces) the raw LLM responses. LLM outputs are not fully
-> deterministic, so re-generated data can differ slightly from the published data.
+> You do **not** need to run this to reproduce the paper — the cleaned data needed for every
+> figure and table is published on OSF and fetched by `download_data.py`. This folder
+> documents (and, with the right hardware and API-keys, reproduces) the raw LLM responses
+> themselves, which are [available on request](#requesting-the-source-data) rather than on
+> OSF. LLM outputs are not fully deterministic, so re-generated data can differ slightly from
+> the data underlying the paper.
 
 There are two generation paths:
 
