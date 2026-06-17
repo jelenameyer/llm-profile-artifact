@@ -37,6 +37,13 @@ M = (SCALE_MIN + SCALE_MAX) / 2
 
 C_HUMAN = "#440154"
 C_LLM   = "#1e847f"
+C_LLM_API = "#287c8e" 
+
+# Per-origin point style: proprietary models use the blue fill, semi-transparent and sit on top
+LLM_POINT_STYLE = [
+    ("open",   dict(c=C_LLM,     alpha=1.0, zorder=4)),
+    ("closed", dict(c=C_LLM_API, alpha=0.7, zorder=5)),
+]
 
 _RGB_HUMAN = mcolors.to_rgb(C_HUMAN)
 CMAP_HUMAN = mcolors.LinearSegmentedColormap.from_list(
@@ -48,11 +55,11 @@ KDE_GRID = 140
 KDE_LEVELS = 7
 
 # Typography — matched to 01_forward_reverse_overview.py
-FS_LABEL     = 11   # axis labels
-FS_TITLE     = 13   # subplot titles
-FS_STATS     = 10    # in-plot stats boxes / annotations
-FS_TICK      = 10    # tick labels
-FS_TRAITHEAD = 15   # bold trait letter column header
+FS_LABEL     = 15   # axis labels
+FS_TITLE     = 17   # subplot titles
+FS_STATS     = 13    # in-plot stats boxes / annotations
+FS_TICK      = 13    # tick labels
+FS_TRAITHEAD = 18   # bold trait letter column header
 
 LLM_SIZE_TOP   = 38      # decomposition scatter
 LLM_SIZE_BOT   = 38      # |b̂| scatter (bottom panels are narrower)
@@ -214,12 +221,13 @@ for i, t in enumerate(TRAITS):
         levels = np.linspace(z_max * 0.02, z_max, KDE_LEVELS)
         ax_top.contourf(Xg, Yg, Zg, levels=levels, cmap=CMAP_HUMAN, zorder=2)
 
-    # Full LLM scatter (foreground)
-    ax_top.scatter(
-        sub_l["theta_hat"] - M, sub_l["b_hat"],
-        c=C_LLM, s=LLM_SIZE_TOP, edgecolor="white", linewidth=0.5,
-        zorder=4,
-    )
+    # Full LLM scatter (foreground): proprietary models in see-through blue, on top.
+    for origin, style in LLM_POINT_STYLE:
+        sub_o = sub_l[sub_l["origin"] == origin]
+        ax_top.scatter(
+            sub_o["theta_hat"] - M, sub_o["b_hat"],
+            s=LLM_SIZE_TOP, edgecolor="white", linewidth=0.5, **style,
+        )
 
     ax_top.axhline(0, color="#aa3300", linestyle=":", linewidth=1.4, zorder=3)
     ax_top.set_xlim(-AX_LIM, AX_LIM)
@@ -305,14 +313,15 @@ for i, t in enumerate(TRAITS):
     o_v = np.abs(sub_l[sub_l["origin"] == "open"]["b_hat"].values)
     c_v = np.abs(sub_l[sub_l["origin"] == "closed"]["b_hat"].values)
 
-    for x_pos, vals in [(0, o_v), (1, c_v)]:
+    for x_pos, vals, fill, alpha in [(0, o_v, C_LLM, 0.95),
+                                     (1, c_v, C_LLM_API, 0.7)]:
         if len(vals) == 0:
             continue
         jitter = rng_jit.uniform(-0.14, 0.14, len(vals))
         ax_oc.scatter(
             np.full(len(vals), x_pos) + jitter, vals,
-            c=C_LLM, s=26, edgecolor="white", linewidth=0.4,
-            alpha=0.95, zorder=3,
+            c=fill, s=26, edgecolor="white", linewidth=0.4,
+            alpha=alpha, zorder=3,
         )
         ax_oc.plot(
             [x_pos - 0.26, x_pos + 0.26], [np.median(vals)] * 2,
@@ -380,15 +389,18 @@ top_handles = [
     Patch(facecolor=C_HUMAN, alpha=0.55, edgecolor="none",
           label=fr"Humans, KDE of $(\hat\theta - m,\, \hat b)$  ($n$ = {n_humans:,})"),
     Line2D([0], [0], marker="o", linestyle="", markersize=9,
-           markerfacecolor=C_LLM, markeredgecolor="black", markeredgewidth=0.5,
-           label=fr"LLMs, per-model $(\hat\theta - m,\, \hat b)$  ($n$ = {n_llms})"),
+           markerfacecolor=C_LLM, markeredgecolor="white", markeredgewidth=0.5,
+           label=fr"Open-source LLMs, per-model $(\hat\theta - m,\, \hat b)$"),
+    Line2D([0], [0], marker="o", linestyle="", markersize=9, alpha=0.7,
+           markerfacecolor=C_LLM_API, markeredgecolor="white", markeredgewidth=0.5,
+           label=fr"Proprietary LLMs, per-model $(\hat\theta - m,\, \hat b)$"),
     Line2D([0], [0], color="#aa3300", linestyle=":", linewidth=1.8,
            label=r"$\hat b = 0$ (bias-free baseline)"),
 ]
 
 bottom_handles = [
     Patch(facecolor=C_HUMAN, alpha=0.55, edgecolor=C_HUMAN, linewidth=0.6,
-          label=fr"Humans, KDE of $|\hat b|$  ($n$ = {n_humans:,}; inner bar = median)"),
+          label=fr"Humans, KDE of $|\hat b|$; inner bar = median)"),
     Line2D([0], [0], color="black", linestyle="-", linewidth=2.0,
            label=r"LLM group median $|\hat b|$"),
     Line2D([0], [0], marker="D", linestyle="", markersize=8,
@@ -401,10 +413,10 @@ bottom_handles = [
 leg_top = fig.legend(
     handles=top_handles,
     title=r"Top row:",
-    loc="upper left", ncol=3,
+    loc="upper left", ncol=2,
     fontsize=FS_STATS, title_fontsize=FS_LABEL,
     frameon=True, framealpha=0.90, edgecolor="grey",
-    bbox_to_anchor=(0.06, 0.075),
+    bbox_to_anchor=(0.055, 0.075),
     handlelength=1.6, handletextpad=0.6, borderpad=0.8,
     labelspacing=0.5, columnspacing=1.4,
 )
@@ -416,7 +428,7 @@ leg_bot = fig.legend(
     loc="upper left", ncol=2,
     fontsize=FS_STATS, title_fontsize=FS_LABEL,
     frameon=True, framealpha=0.90, edgecolor="grey",
-    bbox_to_anchor=(0.57, 0.075),
+    bbox_to_anchor=(0.54, 0.075),
     handlelength=2.0, handletextpad=0.7, borderpad=0.8,
     labelspacing=0.5, columnspacing=2.2,
 )

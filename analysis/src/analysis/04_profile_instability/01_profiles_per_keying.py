@@ -166,10 +166,10 @@ BAND_ALPHA = 0.38
 # families read distinctly.
 BLOCK_GAP = 0.7
 # Font sizes for the per-panel labels.
-FS_YTICK = 9    # subscale (y-axis) labels
-FS_XTICK = 8    # x-axis tick labels
-FS_TITLE = 9    # panel title (model name)
-FS_BIAS = 7     # bias estimate, shown one line below the model name (smaller)
+FS_YTICK = 11    # subscale (y-axis) labels
+FS_XTICK = 11    # x-axis tick labels
+FS_TITLE = 15    # panel title (model name), legend content
+FS_BIAS = 11     # bias estimate, shown one line below the model name (smaller)
 ANNOTATION_HALO = [patheffects.withStroke(linewidth=2.0, foreground="white")]
 
 
@@ -803,7 +803,7 @@ def make_figure(profiles: pd.DataFrame, mu_a: pd.DataFrame,
     handles = []
     for t in (0.0, 1.0):
         handles.append(Line2D([0], [0], color=LINE_COLORS[t], marker=MARKERS[t],
-                              markersize=6, markerfacecolor=LINE_COLORS[t],
+                              markersize=10, markerfacecolor=LINE_COLORS[t],
                               markeredgecolor=LINE_COLORS[t], linewidth=1.6,
                               label=LINE_LABELS[t]))
     handles.append(Patch(facecolor=HUMAN_FILL, alpha=0.85, linewidth=0,
@@ -831,13 +831,13 @@ def make_figure(profiles: pd.DataFrame, mu_a: pd.DataFrame,
         above = [axes_flat[i - n_cols] for i in empty_idx if i - n_cols >= 0]
         y_above = min(ax.get_position().y0 for ax in above) if above else ry1
         caption_y = ry1 + caption_raise * (y_above - ry1)
-        fig.text(cx, caption_y, caption, ha="center", va="top", fontsize=11)
+        fig.text(cx, caption_y, caption, ha="center", va="top", fontsize=FS_TITLE)
         fig.legend(handles=handles, loc="upper center", ncol=2,
-                   bbox_to_anchor=(cx, ry1 - 0.040), frameon=False, fontsize=11)
+                   bbox_to_anchor=(cx, ry1 - 0.040), frameon=False, fontsize=FS_TITLE)
     else:
         fig.legend(handles=handles, loc="lower center", ncol=5, frameon=False,
-                   bbox_to_anchor=(0.5, 0.01), fontsize=10)
-        fig.supxlabel(caption.replace("\n", "  "), fontsize=10, y=0.02)
+                   bbox_to_anchor=(0.5, 0.01), fontsize=FS_TITLE)
+        fig.supxlabel(caption.replace("\n", "  "), fontsize=FS_TITLE, y=0.02)
 
     fig.savefig(OUT_FIG, bbox_inches="tight")
     print(f"-> {OUT_FIG.relative_to(ROOT)}")
