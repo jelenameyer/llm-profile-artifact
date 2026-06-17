@@ -5,10 +5,10 @@ import re
 from utils import corrs_table_from_conditions, format_ci_cell
 
 # load all dfs necessary
-raw_ipipneo_data = pd.read_csv("../../../data/intermediate/ipipneo300_data/llm_data/ipipneo_no_flip_data_raw.csv", low_memory=False)
-raw_ipipneo_data_humans = pd.read_csv("../../../data/intermediate/ipipneo300_data/human_data/ipipneo_human_raw.csv", low_memory=False)
+raw_ipipneo_data = pd.read_csv("../../../data/ipipneo300_data/llm_data/ipipneo_no_flip_data_raw.csv", low_memory=False)
+raw_ipipneo_data_humans = pd.read_csv("../../../data/ipipneo300_data/human_data/ipipneo_human_raw.csv", low_memory=False)
 # api data
-api_data = pd.read_csv("../../../data/intermediate/ipipneo300_data/api_data/ipipneo_api_data_raw.csv", low_memory=False)
+api_data = pd.read_csv("../../../data/ipipneo300_data/api_data/ipipneo_api_data_raw.csv", low_memory=False)
 api_nr = api_data[api_data["model"].str.contains("_nr", regex=False)] # only use no-reasoning condition here
 raw_ipipneo_data = pd.concat([raw_ipipneo_data, api_nr], ignore_index=True) # add api data to other raw llm data
 

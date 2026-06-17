@@ -13,7 +13,7 @@ from utils import corrs_table_from_conditions, to_latex_table, format_ci_cell
 
 # The LOT human rows are rebuilt from the original per-trial Frey lottery data, which is
 # not re-hosted here but fetched from the public Frey OSF project by download_data.py.
-LOT_SRC = Path("../../../data/raw/risk_data/orig_human_data/lotteries.csv")
+LOT_SRC = Path("../../../source/risk_data/orig_human_data/lotteries.csv")
 if not LOT_SRC.exists():
     print(
         f"[skip] missing {LOT_SRC.name} (original Frey et al. 2017 data, normally fetched by\n"
@@ -24,14 +24,14 @@ if not LOT_SRC.exists():
     sys.exit(77)
 
 # load all dfs necessary
-raw_risk_data = pd.read_csv("../../../data/intermediate/risk_data/LLM_data_proc_prompts_direct/LLM_no_flip_data_raw.csv", low_memory=False)
-raw_risk_data_flip = pd.read_csv("../../../data/intermediate/risk_data/LLM_data_proc_prompts_direct/LLM_flip_data_raw.csv", low_memory=False)
-raw_risk_data_humans = pd.read_csv("../../../data/intermediate/risk_data/human_data_proc/raw_items_per_person.csv", low_memory=False)
+raw_risk_data = pd.read_csv("../../../data/risk_data/LLM_data_proc_prompts_direct/LLM_no_flip_data_raw.csv", low_memory=False)
+raw_risk_data_flip = pd.read_csv("../../../data/risk_data/LLM_data_proc_prompts_direct/LLM_flip_data_raw.csv", low_memory=False)
+raw_risk_data_humans = pd.read_csv("../../../data/risk_data/human_data_proc/raw_items_per_person.csv", low_memory=False)
 
 # proprietary (API) models: added to the no-context, textgen condition only (they
 # support only that variant and expose no token-level logits), mirroring the
 # IPIP-NEO table in 05_forward_reverse_corr_table_supp.py.
-api_data = pd.read_csv("../../../data/intermediate/risk_data/api_data/LLM_api_no_flip_data_raw.csv", low_memory=False)
+api_data = pd.read_csv("../../../data/risk_data/api_data/LLM_api_no_flip_data_raw.csv", low_memory=False)
 api_nr = api_data[api_data["model"].str.contains("_nr", regex=False)]
 # raw LOT trials: used to rebuild the LOT human rows with per-trial keying (see the
 # LOT override block below).

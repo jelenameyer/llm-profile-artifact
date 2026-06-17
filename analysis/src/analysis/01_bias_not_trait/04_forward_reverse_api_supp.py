@@ -10,7 +10,7 @@ TRAITS = ["O", "C", "E", "A", "N"]
 
 # load API data; split reasoning (__r) vs non-reasoning (__nr) sub-conditions
 api_data = pd.read_csv(
-    "../../../data/intermediate/ipipneo300_data/api_data/ipipneo_api_data_raw.csv",
+    "../../../data/ipipneo300_data/api_data/ipipneo_api_data_raw.csv",
     low_memory=False,
 )
 api_nr = api_data[api_data["model"].str.contains("_nr", regex=False)]

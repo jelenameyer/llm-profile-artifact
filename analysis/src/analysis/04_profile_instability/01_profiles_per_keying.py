@@ -31,34 +31,34 @@ from matplotlib.patches import Patch
 ROOT = Path(__file__).resolve().parents[4]
 LLM_RAW_CSV = (
     ROOT
-    / "analysis/data/intermediate/risk_data/LLM_data_proc_prompts_direct/LLM_no_flip_data_raw.csv"
+    / "analysis/data/risk_data/LLM_data_proc_prompts_direct/LLM_no_flip_data_raw.csv"
 )
 IPIP_RAW_CSV = (
     ROOT
-    / "analysis/data/intermediate/ipipneo300_data/llm_data/ipipneo_all_data_raw.csv"
+    / "analysis/data/ipipneo300_data/llm_data/ipipneo_all_data_raw.csv"
 )
 # Proprietary-API models (collected separately, no_context / no-reasoning / no logits).
 LLM_API_CSV = (
     ROOT
-    / "analysis/data/intermediate/risk_data/api_data/LLM_api_no_flip_data_raw.csv"
+    / "analysis/data/risk_data/api_data/LLM_api_no_flip_data_raw.csv"
 )
 IPIP_API_CSV = (
     ROOT
-    / "analysis/data/intermediate/ipipneo300_data/api_data/ipipneo_api_data_raw.csv"
+    / "analysis/data/ipipneo300_data/api_data/ipipneo_api_data_raw.csv"
 )
 # Per-person human item responses (for the human-mean reference panel).
 HUMAN_RISK_CSV = (
-    ROOT / "analysis/data/intermediate/risk_data/human_data_proc/raw_items_per_person.csv"
+    ROOT / "analysis/data/risk_data/human_data_proc/raw_items_per_person.csv"
 )
 HUMAN_IPIP_CSV = (
-    ROOT / "analysis/data/intermediate/ipipneo300_data/human_data/ipipneo_human_raw.csv"
+    ROOT / "analysis/data/ipipneo300_data/human_data/ipipneo_human_raw.csv"
 )
 # Raw human source files for the behavioral tasks. Unlike the self-report scales,
 # behavioral "reverse-keying" = the risky option's POSITION, so the human profile
 # must be position-coded (which option was chosen) to be comparable to the LLM
 # panels — the per-person risk file only stores the content score (chose risky).
-HUMAN_LOT_SRC = ROOT / "analysis/data/raw/risk_data/orig_human_data/lotteries.csv"
-HUMAN_DFD_SRC = ROOT / "analysis/data/raw/risk_data/orig_human_data/dfd_perprob.csv"
+HUMAN_LOT_SRC = ROOT / "analysis/source/risk_data/orig_human_data/lotteries.csv"
+HUMAN_DFD_SRC = ROOT / "analysis/source/risk_data/orig_human_data/dfd_perprob.csv"
 # These two are original Frey et al. (2017) files, not re-hosted here but fetched from the
 # public Frey OSF project by download_data.py. Required for the human LOT/DFD points.
 _missing = [p.name for p in (HUMAN_LOT_SRC, HUMAN_DFD_SRC) if not p.exists()]

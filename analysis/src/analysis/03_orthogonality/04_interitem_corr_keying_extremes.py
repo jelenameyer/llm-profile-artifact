@@ -29,8 +29,8 @@ from utils import (
     pick_individual_col,
 )
 
-DATA_DIR = (BASE_DIR / "../../../data/intermediate/risk_data").resolve()
-IPIP_DIR = (BASE_DIR / "../../../data/intermediate/ipipneo300_data").resolve()
+DATA_DIR = (BASE_DIR / "../../../data/risk_data").resolve()
+IPIP_DIR = (BASE_DIR / "../../../data/ipipneo300_data").resolve()
 
 SAVE_PATHS = [
     BASE_DIR / "../../../results/figures/orthogonality_interitem_extremes.pdf",

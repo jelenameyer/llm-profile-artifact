@@ -1,8 +1,12 @@
 # ----------------------------------------------------------------------------
-# Data (hosted on OSF, fetched with download_data.py) -- never committed to git.
+# Data -- never committed to git.
+#   analysis/data/    cleaned 'data' tier, fetched from OSF by download_data.py
+#   analysis/source/  raw responses, available on request (not on OSF)
 # ----------------------------------------------------------------------------
 analysis/data/*
 !analysis/data/.gitkeep
+analysis/source/*
+!analysis/source/.gitkeep
 *.zip
 
 # ----------------------------------------------------------------------------

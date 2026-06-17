@@ -1,6 +1,6 @@
 """Negation check for the forward-reverse asymmetry (SI Table S16).
 
-Writes to analysis/data/intermediate/negation_analysis/:
+Writes to analysis/data/negation_analysis/:
   ipipneo300_negation_labels.csv
   negation_results_summary.csv
   forward_reverse_negation_free_subset_results.csv
@@ -18,8 +18,8 @@ from utils import get_corrs_and_ci
 
 REPO = Path(__file__).resolve().parents[4]
 ITEMS = REPO / "data_generation/direct/tasks/jsonl_data/ipipneo300_items.jsonl"
-DATA_DIR = REPO / "analysis/data/intermediate/ipipneo300_data"
-OUT = REPO / "analysis/data/intermediate/negation_analysis"
+DATA_DIR = REPO / "analysis/data/ipipneo300_data"
+OUT = REPO / "analysis/data/negation_analysis"
 
 
 def phi(x, y):

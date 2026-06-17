@@ -5,16 +5,13 @@ The data is stored on OSF as plain folder trees (not zip archives), so individua
 files stay small and there is no per-file size limit to worry about. This script
 mirrors the chosen folders from OSF into the local repo, preserving structure:
 
-    OSF:  osfstorage/intermediate/...   ->  analysis/data/intermediate/...
-    OSF:  osfstorage/raw/...            ->  analysis/data/raw/...
+    OSF:  osfstorage/data/...           ->  analysis/data/...
     OSF:  osfstorage/survey_data/...    ->  data_generation/hybrid/survey_data/...
 
 Tiers
 -----
-  * intermediate  (~590 MB)  cleaned, person-per-item data. All you need to
+  * data          (~590 MB)  cleaned, person-per-item data. All you need to
                              reproduce every figure and table. Downloaded by default.
-  * raw           (~10 GB)   raw LLM/human responses. Only needed to re-run the
-                             preprocessing scripts (01-07). Use ``--raw``.
   * survey_data   (~200 MB)  per-participant prompts for the hybrid generation path.
                              Only needed to re-generate data. Use ``--survey-data``.
 
@@ -24,10 +21,9 @@ are pulled from the *public* Frey OSF project, not re-hosted here.
 
 Usage
 -----
-    python download_data.py                  # intermediate only (default)
-    python download_data.py --raw            # intermediate + raw
-    python download_data.py --all            # everything
-    python download_data.py --tier raw       # raw only
+    python download_data.py                  # data tier only (default)
+    python download_data.py --all            # every OSF-hosted tier (data + survey_data)
+    python download_data.py --survey-data    # data + generation prompts
     python download_data.py --list           # show tiers and exit
 
 For a still-private OSF project, set an access token first:
@@ -49,11 +45,10 @@ OSF_PROJECT_ID = "nckds"
 
 REPO_ROOT = Path(__file__).resolve().parent
 
-# tier name -> (OSF top-level folder, local base dir the folder is mirrored into)
+# tier name -> (OSF top-level folder, local base dir the folder is mirrored into).
 TIERS = {
-    "intermediate": ("intermediate", REPO_ROOT / "analysis" / "data"),
-    "raw":          ("raw",          REPO_ROOT / "analysis" / "data"),
-    "survey_data":  ("survey_data",  REPO_ROOT / "data_generation" / "hybrid"),
+    "data":        ("data",        REPO_ROOT / "analysis"),
+    "survey_data": ("survey_data", REPO_ROOT / "data_generation" / "hybrid"),
 }
 
 # Two original Frey et al. (2017) files that two analysis scripts read directly (for
@@ -65,7 +60,7 @@ FREY_FILES = {
     "/data/main/lotteries/lotteries.csv": "lotteries.csv",
     "/data/main/dfd/dfd_perprob.csv":     "dfd_perprob.csv",
 }
-FREY_DEST_DIR = REPO_ROOT / "analysis" / "data" / "raw" / "risk_data" / "orig_human_data"
+FREY_DEST_DIR = REPO_ROOT / "analysis" / "source" / "risk_data" / "orig_human_data"
 
 
 def _osf_storage(project_id: str = OSF_PROJECT_ID, use_token: bool = True):
@@ -123,9 +118,8 @@ def download_frey_files(force: bool = False) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--raw", action="store_true", help="also download the ~10 GB raw data")
     ap.add_argument("--survey-data", action="store_true", help="also download generation prompts")
-    ap.add_argument("--all", action="store_true", help="download every tier")
+    ap.add_argument("--all", action="store_true", help="download every OSF-hosted tier")
     ap.add_argument("--tier", choices=list(TIERS), help="download only this tier")
     ap.add_argument("--force", action="store_true", help="re-download files that already exist")
     ap.add_argument("--list", action="store_true", help="list tiers and exit")
@@ -134,7 +128,7 @@ def main() -> None:
     if args.list:
         print(f"OSF project: {OSF_PROJECT_ID}")
         for name, (folder, base) in TIERS.items():
-            print(f"  - {name:13s} osfstorage/{folder}/ -> {base.relative_to(REPO_ROOT)}/{folder}/")
+            print(f"  - {name:13s} osfstorage/{folder}/ -> {(base / folder).relative_to(REPO_ROOT)}/")
         return
 
     if args.tier:
@@ -142,9 +136,7 @@ def main() -> None:
     elif args.all:
         tiers = list(TIERS)
     else:
-        tiers = ["intermediate"]
-        if args.raw:
-            tiers.append("raw")
+        tiers = ["data"]
         if args.survey_data:
             tiers.append("survey_data")
 

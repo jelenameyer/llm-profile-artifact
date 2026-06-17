@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Reproduce every figure and table from the cleaned (intermediate) data.
+"""Reproduce every figure and table from the cleaned data.
 
 Runs the full default reproduction path end to end:
 
-  1. download the intermediate data from OSF  (download_data.py)
+  1. download the cleaned 'data' tier from OSF  (download_data.py)
   2. run every analysis script, in paper order, writing all figures and
      tables to analysis/results/
 

@@ -2,8 +2,8 @@
 """Preprocess the IPIP-NEO-300 open-weight LLM responses into long per-item format
 (raw + recoded; flipped + no-flip variants).
 
-Reads data/raw/ipipneo300_data/llm_data/ (per-model *_ipipneo*_results.csv) + the item key.
-Writes the six data/intermediate/ipipneo300_data/llm_data/ipipneo_*.csv variants.
+Reads source/ipipneo300_data/llm_data/ (per-model *_ipipneo*_results.csv) + the item key.
+Writes the six data/ipipneo300_data/llm_data/ipipneo_*.csv variants.
 """
 
 # ----------- packages  ------------------------------------
@@ -18,7 +18,7 @@ IPIP_data = load_dataframes(task_name="ipipneo")
 IPIP_data["experiment"] = "IPIP-NEO-300"
 
 # read metadata neo-ipip
-meta_data_ipip = pd.read_excel("../../data/raw/ipipneo300_data/human_data/IPIP-NEO-ItemKey.xls", sheet_name=None)
+meta_data_ipip = pd.read_excel("../../source/ipipneo300_data/human_data/IPIP-NEO-ItemKey.xls", sheet_name=None)
 meta_data_ipip = meta_data_ipip['IPIP-NEO-ItemKey']
 
 # --------- process data -----------------------------------
@@ -85,11 +85,11 @@ flip_data_raw = raw_ipip_flipped
 
 
 # ---------- save data -------------------------------
-all_data_reflipped_and_rereversed.to_csv('../../data/intermediate/ipipneo300_data/llm_data/ipipneo_all_data_reflipped_and_rereversed.csv', index=False)
-all_data_raw.to_csv('../../data/intermediate/ipipneo300_data/llm_data/ipipneo_all_data_raw.csv', index=False)
+all_data_reflipped_and_rereversed.to_csv('../../data/ipipneo300_data/llm_data/ipipneo_all_data_reflipped_and_rereversed.csv', index=False)
+all_data_raw.to_csv('../../data/ipipneo300_data/llm_data/ipipneo_all_data_raw.csv', index=False)
 
-no_flip_data_rereversed.to_csv('../../data/intermediate/ipipneo300_data/llm_data/ipipneo_no_flip_data_rereversed.csv', index=False)
-no_flip_data_raw.to_csv('../../data/intermediate/ipipneo300_data/llm_data/ipipneo_no_flip_data_raw.csv', index=False)
+no_flip_data_rereversed.to_csv('../../data/ipipneo300_data/llm_data/ipipneo_no_flip_data_rereversed.csv', index=False)
+no_flip_data_raw.to_csv('../../data/ipipneo300_data/llm_data/ipipneo_no_flip_data_raw.csv', index=False)
 
-flip_data_rereversed.to_csv('../../data/intermediate/ipipneo300_data/llm_data/ipipneo_flip_data_rereversed.csv', index=False)
-flip_data_raw.to_csv('../../data/intermediate/ipipneo300_data/llm_data/ipipneo_flip_data_raw.csv', index=False)
+flip_data_rereversed.to_csv('../../data/ipipneo300_data/llm_data/ipipneo_flip_data_rereversed.csv', index=False)
+flip_data_raw.to_csv('../../data/ipipneo300_data/llm_data/ipipneo_flip_data_raw.csv', index=False)

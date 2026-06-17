@@ -22,7 +22,7 @@ from utils import (
 UNIT = "traits"  # group at the trait level (O/C/E/A/N), not the facet level
 
 HERE = Path(__file__).resolve().parent
-DATA = HERE / "../../../data/intermediate/ipipneo300_data"
+DATA = HERE / "../../../data/ipipneo300_data"
 OUT = HERE / "../../../results/tables"
 
 

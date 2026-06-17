@@ -6,7 +6,7 @@ import os
 
 # Loading all data files of one task ------------------------------------------------------------
 
-def load_dataframes(task_name, path = "../../data/raw/ipipneo300_data/llm_data"):
+def load_dataframes(task_name, path = "../../source/ipipneo300_data/llm_data"):
 
     # Initialize empty list to store DataFrames
     dataframe = []

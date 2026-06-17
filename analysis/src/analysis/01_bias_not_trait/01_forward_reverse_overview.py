@@ -74,7 +74,7 @@ LINE_WIDTH = 3
 # ══════════════════════════════════════════════════════════════════════════
 
 raw_humans = pd.read_csv(
-    "../../../data/intermediate/ipipneo300_data/human_data/ipipneo_human_raw.csv",
+    "../../../data/ipipneo300_data/human_data/ipipneo_human_raw.csv",
     low_memory=False,
 )
 raw_humans["response"] = pd.to_numeric(
@@ -84,12 +84,12 @@ raw_humans["response"] = pd.to_numeric(
 raw_humans = raw_humans.dropna(subset=["response"])
 
 raw_llms = pd.read_csv(
-    "../../../data/intermediate/ipipneo300_data/llm_data/ipipneo_no_flip_data_raw.csv",
+    "../../../data/ipipneo300_data/llm_data/ipipneo_no_flip_data_raw.csv",
     low_memory=False,
 )
 # add API non-reasoning models
 api_data = pd.read_csv(
-    "../../../data/intermediate/ipipneo300_data/api_data/ipipneo_api_data_raw.csv",
+    "../../../data/ipipneo300_data/api_data/ipipneo_api_data_raw.csv",
     low_memory=False,
 )
 raw_llms = pd.concat([raw_llms, api_data[api_data["model"].str.contains("_nr", regex=False)]], ignore_index=True)

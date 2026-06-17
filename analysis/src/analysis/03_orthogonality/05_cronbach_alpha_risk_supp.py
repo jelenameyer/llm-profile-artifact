@@ -79,12 +79,12 @@ def build_overview_table(llm_data, human_data):
 
 def main():
     llm = pd.read_csv(
-        "../../../data/intermediate/risk_data/LLM_data_proc_prompts_direct/LLM_no_flip_data_rereversed.csv",
+        "../../../data/risk_data/LLM_data_proc_prompts_direct/LLM_no_flip_data_rereversed.csv",
         low_memory=False)
     llm = llm[llm["context_mode"] == "no_context"]
     # Add the 10 proprietary API models (no-reasoning / no_context / no-flip slice).
     api = pd.read_csv(
-        "../../../data/intermediate/risk_data/api_data/LLM_api_no_flip_data_rereversed.csv",
+        "../../../data/risk_data/api_data/LLM_api_no_flip_data_rereversed.csv",
         low_memory=False)
     api = api[api["model"].str.endswith("__nr")
               & (api["context_mode"] == "no_context") & (api["flipped"] == False)]
@@ -93,7 +93,7 @@ def main():
           f"({api['model'].nunique()} proprietary API added)")
 
     human = pd.read_csv(
-        "../../../data/intermediate/risk_data/human_data_proc/items_per_person.csv",
+        "../../../data/risk_data/human_data_proc/items_per_person.csv",
         low_memory=False)
     human["experiment"] = (human["experiment"].str.replace(r"\s.+$", "", regex=True)
                                               .str.replace("BARRAT", "BARRATT", regex=False))

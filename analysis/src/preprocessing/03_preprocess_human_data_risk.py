@@ -16,8 +16,9 @@ import pandas as pd
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = (SCRIPT_DIR / "../../data").resolve()
-RAW_DIR = DATA_DIR / "raw/risk_data/orig_human_data"
-INTERMEDIATE_DIR = DATA_DIR / "intermediate/risk_data/human_data_proc"
+SOURCE_DIR = (SCRIPT_DIR / "../../source").resolve()
+RAW_DIR = SOURCE_DIR / "risk_data/orig_human_data"
+OUT_DIR = DATA_DIR / "risk_data/human_data_proc"
 
 
 # ------------------------ shared mappings ------------------------
@@ -153,7 +154,7 @@ RAW_CONFIG = {
         "FTND scale": {"SmokeSplit": 1, "FTND_1": 2, "FTND_2": 3, "FTND_3": 4, "FTND_4": 5, "FTND_5": 6, "FTND_6": 7},
     },
     "extract_item_number": lambda name, _exp: _extract_item_number_default(name),
-    "output_file": INTERMEDIATE_DIR / "raw_items_per_person.csv",
+    "output_file": OUT_DIR / "raw_items_per_person.csv",
 }
 
 PROC_CONFIG = {
@@ -240,7 +241,7 @@ PROC_CONFIG = {
         "FTND scale": {"SmokeSplit": 1, "FTND_1": 2, "FTND_2": 3, "FTND_3": 4, "FTND_4": 5, "FTND_5": 6, "FTND_6": 7},
     },
     "extract_item_number": lambda name, exp: _extract_item_number_dm_proc(name, exp),
-    "output_file": INTERMEDIATE_DIR / "items_per_person.csv",
+    "output_file": OUT_DIR / "items_per_person.csv",
 }
 
 

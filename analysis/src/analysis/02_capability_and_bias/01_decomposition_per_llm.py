@@ -68,9 +68,9 @@ GRID_ALPHA     = 0.15
 
 FIGURE_NAME = "decomposition_per_llm.pdf"
 
-LLM_RAW_PATH    = "../../../data/intermediate/ipipneo300_data/llm_data/ipipneo_no_flip_data_raw.csv"
-API_RAW_PATH    = "../../../data/intermediate/ipipneo300_data/api_data/ipipneo_api_data_raw.csv"
-HUMAN_RAW_PATH  = "../../../data/intermediate/ipipneo300_data/human_data/ipipneo_human_raw.csv"
+LLM_RAW_PATH    = "../../../data/ipipneo300_data/llm_data/ipipneo_no_flip_data_raw.csv"
+API_RAW_PATH    = "../../../data/ipipneo300_data/api_data/ipipneo_api_data_raw.csv"
+HUMAN_RAW_PATH  = "../../../data/ipipneo300_data/human_data/ipipneo_human_raw.csv"
 
 OUT_FIG_DIR   = Path("../../../results/figures")
 OUT_TABLE_DIR = Path("../../../results/tables")

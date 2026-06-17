@@ -2,8 +2,8 @@
 """Preprocess the IPIP-NEO-300 proprietary-API LLM responses into long per-item
 format (raw + recoded). API models carry no logits, so those columns are set null.
 
-Reads data/raw/ipipneo300_data/outputs_api/ (per-model *_ipipneo*_results.csv) + the item key.
-Writes data/intermediate/ipipneo300_data/api_data/ipipneo_api_data_{rereversed,raw}.csv.
+Reads source/ipipneo300_data/outputs_api/ (per-model *_ipipneo*_results.csv) + the item key.
+Writes data/ipipneo300_data/api_data/ipipneo_api_data_{rereversed,raw}.csv.
 """
 
 # ----------- packages  ------------------------------------
@@ -14,11 +14,11 @@ from utils import create_traits_map, create_facet_map, create_reverse_map, load_
 # ---------- Reading data ----------------------------------
 
 # load data
-IPIP_data = load_dataframes(task_name="ipipneo", path = "../../data/raw/ipipneo300_data/outputs_api")
+IPIP_data = load_dataframes(task_name="ipipneo", path = "../../source/ipipneo300_data/outputs_api")
 IPIP_data["experiment"] = "IPIP-NEO-300"
 
 # read metadata neo-ipip
-meta_data_ipip = pd.read_excel("../../data/raw/ipipneo300_data/human_data/IPIP-NEO-ItemKey.xls", sheet_name=None)
+meta_data_ipip = pd.read_excel("../../source/ipipneo300_data/human_data/IPIP-NEO-ItemKey.xls", sheet_name=None)
 meta_data_ipip = meta_data_ipip['IPIP-NEO-ItemKey']
 
 # --------- process data -----------------------------------
@@ -51,5 +51,5 @@ ipip_reversed.loc[mask, "model_answer"] = 6 - ipip_reversed.loc[mask, "model_ans
 
 
 # ---------- save data -------------------------------
-ipip_reversed.to_csv('../../data/intermediate/ipipneo300_data/api_data/ipipneo_api_data_rereversed.csv', index=False)
-IPIP_data.to_csv('../../data/intermediate/ipipneo300_data/api_data/ipipneo_api_data_raw.csv', index=False)
+ipip_reversed.to_csv('../../data/ipipneo300_data/api_data/ipipneo_api_data_rereversed.csv', index=False)
+IPIP_data.to_csv('../../data/ipipneo300_data/api_data/ipipneo_api_data_raw.csv', index=False)

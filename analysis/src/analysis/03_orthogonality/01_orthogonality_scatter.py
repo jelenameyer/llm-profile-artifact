@@ -24,12 +24,12 @@ from utils import (
 
 BASE_DIR = Path(__file__).resolve().parent
 
-LLM_PATH = BASE_DIR / "../../../data/intermediate/risk_data/LLM_data_proc_prompts_direct/LLM_no_flip_data_rereversed.csv"
-LLM_API_PATH = BASE_DIR / "../../../data/intermediate/risk_data/api_data/LLM_api_no_flip_data_rereversed.csv"
-HUMAN_PATH = BASE_DIR / "../../../data/intermediate/risk_data/human_data_proc/items_per_person.csv"
-IPIP_LLM_PATH = BASE_DIR / "../../../data/intermediate/ipipneo300_data/llm_data/ipipneo_all_data_reflipped_and_rereversed.csv"
-IPIP_API_PATH = BASE_DIR / "../../../data/intermediate/ipipneo300_data/api_data/ipipneo_api_data_rereversed.csv"
-IPIP_HUMAN_PATH = BASE_DIR / "../../../data/intermediate/ipipneo300_data/human_data/ipipneo_human.csv"
+LLM_PATH = BASE_DIR / "../../../data/risk_data/LLM_data_proc_prompts_direct/LLM_no_flip_data_rereversed.csv"
+LLM_API_PATH = BASE_DIR / "../../../data/risk_data/api_data/LLM_api_no_flip_data_rereversed.csv"
+HUMAN_PATH = BASE_DIR / "../../../data/risk_data/human_data_proc/items_per_person.csv"
+IPIP_LLM_PATH = BASE_DIR / "../../../data/ipipneo300_data/llm_data/ipipneo_all_data_reflipped_and_rereversed.csv"
+IPIP_API_PATH = BASE_DIR / "../../../data/ipipneo300_data/api_data/ipipneo_api_data_rereversed.csv"
+IPIP_HUMAN_PATH = BASE_DIR / "../../../data/ipipneo300_data/human_data/ipipneo_human.csv"
 
 SAVE_PATHS = [
     BASE_DIR / "../../../results/figures/orthogonality_scatter.pdf",

@@ -14,9 +14,9 @@ import pandas as pd
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
-LLM_PATH   = "../../../data/intermediate/risk_data/LLM_data_proc_prompts_direct/LLM_no_flip_data_raw.csv"
-API_PATH   = "../../../data/intermediate/risk_data/api_data/LLM_api_no_flip_data_raw.csv"
-HUMAN_PATH = "../../../data/intermediate/risk_data/human_data_proc/raw_items_per_person.csv"
+LLM_PATH   = "../../../data/risk_data/LLM_data_proc_prompts_direct/LLM_no_flip_data_raw.csv"
+API_PATH   = "../../../data/risk_data/api_data/LLM_api_no_flip_data_raw.csv"
+HUMAN_PATH = "../../../data/risk_data/human_data_proc/raw_items_per_person.csv"
 
 SCALE_MIN, SCALE_MAX = 1, 4          # BARRATT (BIS-11): 1-4 Likert
 M, FLIP = (SCALE_MIN + SCALE_MAX) / 2, SCALE_MIN + SCALE_MAX
