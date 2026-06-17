@@ -1,4 +1,4 @@
-# Reliability and validity of human personality measures applied to LLMs
+# Apparent Psychological Profiles of Large Language Models are Largely a Measurement Artifact
 
 Code to reproduce the data generation as well as all analyses, figures, and tables in
 **"Apparent Psychological Profiles of Large Language Models are Largely a Measurement Artifact"**
