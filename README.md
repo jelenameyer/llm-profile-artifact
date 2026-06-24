@@ -5,6 +5,7 @@ Code to reproduce the data generation as well as all analyses, figures, and tabl
 (Jelena Meyer, David Garcia, Dirk U. Wulff, 2026).
 
 - Paper: DOI to be added
+- Preprint: <https://lnkd.in/d7cHm44D>
 - Data: <https://osf.io/nckds/overview>
 
 ---
