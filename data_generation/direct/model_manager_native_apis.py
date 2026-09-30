@@ -145,9 +145,27 @@ GEN_PARAMS_REASONING_OVERRIDES: Dict[str, dict] = {
 # merged into the per-call metadata, so each becomes a column in the output CSV.
 # --served-quantization overrides these at run time for the models being run.
 MODEL_SERVING_NOTES: Dict[str, Dict[str, str]] = {
+    # Checkpoint is uniformly BF16 (HF safetensors index: 560,524,578,816 of
+    # 560,524,603,904 params BF16, remainder F32; no quantization_config).
     "NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16": {"served_quantization": "bf16"},
-    # Served at the vLLM default dtype, confirmed with Dirk 30 Sep 2026.
-    "GLM-5.3-Flash": {"served_quantization": "bf16"},
+    # Uniformly BF16, no quantization_config (426,993,800,960 of 427,040,140,160).
+    "MiniMax-M3": {"served_quantization": "bf16"},
+    # NOT bf16, despite the vLLM default. The zai-org/GLM-5.3-Flash checkpoint
+    # ships FP8: config.json carries quantization_config {quant_method: "fp8",
+    # fmt: "e4m3", activation_scheme: "dynamic", weight_block_size: [128,128]},
+    # and 314,396,639,232 of 321,323,031,390 parameters (97.8%) are stored as
+    # F8_E4M3. vLLM honours that config on load, so the served weights are FP8
+    # regardless of --dtype. A separate zai-org/GLM-5.3-Flash-BF16 repo exists
+    # and was NOT the one served (launch args recorded --model=zai-org/GLM-5.3-Flash,
+    # and the preflight matched that id against /models). See VLLM_RUN_NOTES §2.
+    "GLM-5.3-Flash": {"served_quantization": "fp8-e4m3"},
+    # Keys are SUBSTRING matches applied in insertion order, so this must stay
+    # after the entry above: "GLM-5.3-Flash" also matches the BF16 repo id, and
+    # the later update() wins. Only relevant if the BF16 variant is ever served.
+    "GLM-5.3-Flash-BF16": {"served_quantization": "bf16"},
+    # Also not bf16: quantization_config {quant_method: "fp8"}, and the weights
+    # are mixed I8 (557.2B) + F8_E4M3 (204.0B). No BF16 sibling repo found.
+    "DeepSeek-V4.1-Flash": {"served_quantization": "mixed-int8-fp8"},
 }
 
 # Finish reasons meaning the model was still generating when the cap was hit.
@@ -197,6 +215,42 @@ VLLM_REASONING_EFFORT: Dict[str, str] = {
     "GLM-5.3-Flash": "max",
 }
 
+# Which chat-template kwarg controls thinking, per model, as
+# (kwarg_name, value_when_reasoning, value_when_not). The panel-wide default is
+# enable_thinking, which is what GLM-5.3 and most open-weight templates read --
+# but it is a convention, not a standard, and a template that does not recognise
+# the kwarg silently ignores it rather than erroring. The failure is quiet and
+# lands in the non-reasoning condition: the template falls through to its own
+# default (often "model decides"), the model reasons anyway, and under the
+# 16-token cap the result is a truncated thought with no answer.
+#
+# Read each model's chat_template.jinja on the HF repo BEFORE its serving
+# session, and confirm with probe_thinking.py in the first minutes of it.
+VLLM_THINKING_KWARG: Dict[str, Tuple[str, object, object]] = {
+    # MiniMax-M3 ignores enable_thinking entirely. Its template reads
+    # `thinking_mode` with three levels, "enabled" / "disabled" / "adaptive":
+    #   {%- if add_generation_prompt -%}
+    #   {{- bos_token ~ 'ai' ~ '\n' }}
+    #   {%- if thinking_mode is defined and thinking_mode == "disabled" -%}
+    #       {{- think_end_token }}
+    # so "disabled" makes the TEMPLATE close the think block in the generation
+    # prompt. That is the same construct we build by hand for GLM, which is why
+    # MiniMax-M3 must NOT go in VLLM_THINK_PREFILL_MODELS -- prefilling as well
+    # would emit the closing tag twice. Leaving thinking_mode undefined falls
+    # through to the adaptive branch, i.e. no off switch at all.
+    # Read from chat_template.jinja, 30 Sep 2026.
+    "MiniMax-M3": ("thinking_mode", "enabled", "disabled"),
+}
+VLLM_THINKING_KWARG_DEFAULT: Tuple[str, object, object] = ("enable_thinking", True, False)
+
+
+def _thinking_kwarg(model_name: str) -> Tuple[str, object, object]:
+    """The (kwarg, on_value, off_value) triple that controls thinking."""
+    for pattern, spec in VLLM_THINKING_KWARG.items():
+        if pattern in model_name:
+            return spec
+    return VLLM_THINKING_KWARG_DEFAULT
+
 
 def _template_forces_thinking(model_name: str) -> bool:
     """True for models whose chat template cannot be talked out of reasoning."""
@@ -208,7 +262,14 @@ def _template_forces_thinking(model_name: str) -> bool:
 # closing tag. Extracting from the whole string instead picks up digits from the
 # reasoning -- e.g. the "1" in a model restating "respond with strictly one
 # integer from 1 to 11", which yields a valid-looking but entirely wrong answer.
-_THINK_CLOSE_RE = re.compile(r"</think>|</thinking>|<\|end_of_thought\|>", re.IGNORECASE)
+# </mm:think> is MiniMax's variant: its tokenizer defines <think> (200050) and
+# </think> (200051) but ALSO <mm:think> (200059) and </mm:think> (200060). The
+# plain </think> pattern does not match </mm:think> as a substring, so omitting it
+# would leave the whole chain of thought to be scanned for digits -- the silent
+# failure of §6 in VLLM_RUN_NOTES, which returned a valid-looking 1 for every item.
+_THINK_CLOSE_RE = re.compile(
+    r"</think>|</thinking>|</mm:think>|<\|end_of_thought\|>", re.IGNORECASE
+)
 
 
 def _split_inline_reasoning(text: str) -> Tuple[str, Optional[str]]:
@@ -280,6 +341,18 @@ def preflight_vllm(base_url: str, api_key: Optional[str], timeout_s: int,
         raise RuntimeError(
             f"vLLM server at {url} returned HTTP {exc.code} ({exc.reason}). "
             f"{hint}\nResponse body: {body}"
+        ) from exc
+    except json.JSONDecodeError as exc:
+        # The MPCDF host is a single-page web app. When a deployment expires, its
+        # path stops routing to vLLM and falls through to the app's catch-all,
+        # which answers HTTP 200 with an HTML shell -- so a status-code-only
+        # health check reports success on a dead endpoint. Confirmed 30 Sep 2026.
+        raise RuntimeError(
+            f"{url} answered with HTML, not JSON, so this path is not a live vLLM "
+            "server. The usual cause is an expired deployment: the serving session "
+            "has ended and the URL now resolves to the portal's web app, which "
+            "returns HTTP 200 for any path. Ask for the current deployment URL and "
+            "token. (A malformed base URL produces the same symptom.)"
         ) from exc
     except Exception as exc:
         raise RuntimeError(
@@ -731,7 +804,8 @@ class VLLMClient(OpenAICompatibleClient):
 
     def _build_reasoning_params(self, model_name: str, reasoning_effort: Optional[str]) -> dict:
         enabled = bool(reasoning_effort and reasoning_effort != "none")
-        params: dict = {"chat_template_kwargs": {"enable_thinking": enabled}}
+        kwarg, on_value, off_value = _thinking_kwarg(model_name)
+        params: dict = {"chat_template_kwargs": {kwarg: on_value if enabled else off_value}}
 
         # Reasoning condition: the same effort level the proprietary panel used
         # (SI Table S4 — reasoning_effort=low for OpenAI, a 1024-token budget
@@ -788,6 +862,13 @@ class VLLMClient(OpenAICompatibleClient):
             "param_top_p":                    top_p,
             "param_max_tokens":               effective_max_tokens,
             "param_enable_thinking":          use_reasoning,
+            # The template kwarg actually sent, which is not enable_thinking on
+            # every model (see VLLM_THINKING_KWARG). Recorded per row because it
+            # is the only evidence in the CSV that the condition was built the
+            # way the notes claim.
+            "param_thinking_kwarg":           json.dumps(
+                reasoning_params.get("chat_template_kwargs"), sort_keys=True
+            ),
             "param_reasoning_effort_input":   reasoning_effort,
             # What was actually transmitted, which differs from the condition's
             # input label wherever a per-model override applies.
