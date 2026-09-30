@@ -15,10 +15,36 @@ Using outlines for valid answer generation + separate logit extraction.
 import json
 import re
 import numpy as np
-import torch
 import pandas as pd
-import torch.nn.functional as F
-import outlines
+
+# torch and outlines are needed only for LOCAL (GPU) inference. The API path in
+# model_manager_native_apis.py replaces generate_answer_and_logits wholesale and
+# never reaches the functions below that use them, so the proprietary and
+# self-hosted-vLLM runs work in the analysis environment without installing the
+# GPU stack from requirements-generation.txt. When those packages are present the
+# local path behaves exactly as before.
+try:
+    import torch
+    import torch.nn.functional as F
+    import outlines
+    _LOCAL_INFERENCE_AVAILABLE = True
+    _LOCAL_INFERENCE_IMPORT_ERROR = None
+except ImportError as _exc:                     # pragma: no cover - env dependent
+    torch = None
+    F = None
+    outlines = None
+    _LOCAL_INFERENCE_AVAILABLE = False
+    _LOCAL_INFERENCE_IMPORT_ERROR = _exc
+
+
+def _require_local_inference():
+    """Fail loudly if a local-inference path is entered without torch/outlines."""
+    if not _LOCAL_INFERENCE_AVAILABLE:
+        raise RuntimeError(
+            "Local model inference requires torch and outlines. Install the "
+            "generation environment (pip install -r requirements-generation.txt). "
+            f"Original import error: {_LOCAL_INFERENCE_IMPORT_ERROR}"
+        )
 
 
 
@@ -205,6 +231,7 @@ def extract_logits_and_probs(model, tokenizer, messages, valid_answers, model_na
     Returns:
         tuple: (logits_dict, probs_dict)
     """
+    _require_local_inference()
     enc = _encode_messages(messages, tokenizer, model_name)
     base_input_ids = enc["input_ids"].to(model.device)
     if "attention_mask" in enc:
@@ -396,6 +423,7 @@ def generate_answer_and_logits(
     Returns:
         tuple: (answer, logits_dict, probs_dict)
     """
+    _require_local_inference()
     # Step 1: Generate answer
     if outlines_model is not None:
         try:

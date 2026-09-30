@@ -13,17 +13,23 @@ Providers (model-id prefix → API):
   google/     → Google Generative Language API
   qwen/       → Alibaba DashScope (OpenAI-compatible endpoint)
   x-ai/       → xAI API (OpenAI-compatible endpoint)
+  vllm/       → self-hosted vLLM server (OpenAI-compatible; --vllm-base-url)
 
 Reads the task definitions in <task-dir>/ (+ their tasks/jsonl_data/*.jsonl items).
 Writes <outputs-dir>/<safe-model>__<condition>_<task>_results.csv and a run log,
 under outputs_api/.
 
 Usage: python model_manager_native_apis.py --models-file api_models.txt
+
+For the large open-weight models served on our own vLLM instance, see
+vllm_models.txt: one model is hosted at a time, so each is run separately
+with its own --vllm-base-url.
 """
 
 import abc
 import argparse
 import gc
+import hashlib
 import importlib.util
 import json
 import logging
@@ -33,7 +39,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from urllib import error, request
+from urllib import error, parse, request
 
 import pandas as pd
 import base_functions
@@ -45,13 +51,18 @@ os.makedirs("outputs_api", exist_ok=True)
 log_file = os.path.join(
     "outputs_api", f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 )
+# The file handler records at DEBUG so that the request payload and the full
+# response body of every call are kept verbatim; the console stays at INFO so
+# the run remains readable. Without this the payload logging in _http_post is
+# emitted at DEBUG and then discarded by an INFO-level root logger.
+_file_handler = logging.FileHandler(log_file, encoding="utf-8")
+_file_handler.setLevel(logging.DEBUG)
+_stream_handler = logging.StreamHandler()
+_stream_handler.setLevel(logging.INFO)
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(log_file, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
+    handlers=[_file_handler, _stream_handler],
 )
 
 
@@ -113,11 +124,180 @@ MODEL_REQUEST_DELAY_S: Dict[str, float] = {
     "haiku": 1.5,
 }
 
+# Per-provider replacements for GEN_PARAMS_REASONING. The default sets
+# temperature=1.0 only because Anthropic and Qwen force it under extended
+# thinking; a self-hosted vLLM server has no such constraint, so the reasoning
+# condition is run greedily there.
+#
+# NOTE: greedy does NOT mean reproducible for long reasoning chains. Repeating
+# the identical SOEP request on GLM-5.3-Flash at temperature 0 produced a
+# different chain of thought on 7/7 items and a different final answer on 2/7
+# (30 Sep 2026). Continuous batching changes floating-point reduction order
+# between requests, and the difference compounds over hundreds of tokens. The
+# single-observation caveat in SI A.10 therefore applies to this condition as
+# well, and the response cache is the only record of what was actually collected.
+GEN_PARAMS_REASONING_OVERRIDES: Dict[str, dict] = {
+    "vllm": dict(GEN_PARAMS_REASONING, temperature=0.0),
+}
+
+# Serving details that no API returns and that therefore have to be recorded by
+# hand. Keys are matched as a substring of the full model name; the values are
+# merged into the per-call metadata, so each becomes a column in the output CSV.
+# --served-quantization overrides these at run time for the models being run.
+MODEL_SERVING_NOTES: Dict[str, Dict[str, str]] = {
+    "NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16": {"served_quantization": "bf16"},
+    # Served at the vLLM default dtype, confirmed with Dirk 30 Sep 2026.
+    "GLM-5.3-Flash": {"served_quantization": "bf16"},
+}
+
+# Finish reasons meaning the model was still generating when the cap was hit.
+TRUNCATED_FINISH_REASONS = {"length", "MAX_TOKENS", "max_tokens"}
+
+# Bump whenever the way a request is BUILT changes (generation parameters, the
+# thinking on/off mechanism, the prompt construction). It is part of the response
+# cache key, so bumping it invalidates cached answers that were collected under
+# the old protocol instead of silently replaying them.
+CACHE_PROTOCOL_VERSION = 5
+
+# Some chat templates hardcode an OPEN <think> tag into the generation prompt, so
+# the model's first generated token is necessarily reasoning and no request
+# parameter can prevent it. GLM-5.3-Flash is one: its template ends with
+#     {%- if add_generation_prompt -%}<|assistant|>{{- '<think>' -}}{%- endif -%}
+# with no branch that omits the tag, and its reasoning_effort accepts only
+# low/high/max (anything else silently means max).
+#
+# For these models the non-reasoning condition is produced by prefilling the
+# assistant turn with an already-CLOSED thinking block and continuing from it --
+# the same construct the template itself emits for history turns -- so the model
+# has no open block to fill and answers directly.
+#
+# Verified per model with probe_thinking.py. Add a model here only after the
+# "assistant prefill <think></think>" row of that probe reports reasoned = NO.
+VLLM_THINK_PREFILL_MODELS: Tuple[str, ...] = (
+    "GLM-5.3-Flash",
+)
+THINK_PREFILL_CONTENT = "<think></think>"
+
+# Effort value sent in the NON-reasoning condition for the models above. Their
+# reasoning_effort parameter has no "off" level (GLM-5.3 accepts only low/high/
+# max) and silently resolves to max when omitted, which would stamp
+# "Reasoning Effort: Max" into the prompt of the very condition where reasoning
+# is being suppressed. Sending the lowest available level is the least wrong
+# option, and it matches the level the reasoning condition uses panel-wide.
+VLLM_NONREASONING_EFFORT = "low"
+
+# Effort level used in the REASONING condition where a model's scale does not
+# line up with the panel-wide "low" of REASONING_CONDITIONS. On GLM-5.3-Flash
+# "low" does not reduce the budget, it suppresses reasoning outright (0 chars of
+# thinking on 7/7 SOEP items, 30 Sep 2026), so it cannot serve as the reasoning
+# condition. "max" is GLM's own default and produced roughly 150-200 reasoning
+# tokens per item, comfortably inside the 1024-token thinking budget the rest of
+# the panel received (SI Table S4).
+VLLM_REASONING_EFFORT: Dict[str, str] = {
+    "GLM-5.3-Flash": "max",
+}
+
+
+def _template_forces_thinking(model_name: str) -> bool:
+    """True for models whose chat template cannot be talked out of reasoning."""
+    return any(p in model_name for p in VLLM_THINK_PREFILL_MODELS)
+
+# Open-weight reasoning models emit their chain of thought INLINE in the message
+# content, closed by </think>, unless the server runs a --reasoning-parser (which
+# would move it to reasoning_content). The answer is whatever follows the final
+# closing tag. Extracting from the whole string instead picks up digits from the
+# reasoning -- e.g. the "1" in a model restating "respond with strictly one
+# integer from 1 to 11", which yields a valid-looking but entirely wrong answer.
+_THINK_CLOSE_RE = re.compile(r"</think>|</thinking>|<\|end_of_thought\|>", re.IGNORECASE)
+
+
+def _split_inline_reasoning(text: str) -> Tuple[str, Optional[str]]:
+    """Split 'reasoning</think>answer' into (answer_text, reasoning_text).
+
+    Returns (text, None) when no closing tag is present, i.e. for providers that
+    return reasoning separately or for models that do not reason at all.
+    """
+    if not text:
+        return text, None
+    matches = list(_THINK_CLOSE_RE.finditer(text))
+    if not matches:
+        return text, None
+    last = matches[-1]
+    return text[last.end():].strip(), text[:last.start()].strip()
+
+
 # ── Utilities ──────────────────────────────────────────────────────────────
 
 def _safe_model_key(model_name: str) -> str:
     key = model_name.strip().replace("/", "__").replace(":", "_")
     return re.sub(r"[^A-Za-z0-9_.-]", "_", key)
+
+
+def _http_get(url: str, headers: dict, timeout_s: int) -> dict:
+    req = request.Request(url, headers=headers, method="GET")
+    with request.urlopen(req, timeout=timeout_s) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def preflight_vllm(base_url: str, api_key: Optional[str], timeout_s: int,
+                   requested_models: List[str]) -> None:
+    """Check the server is reachable and serving the models we are about to run.
+
+    Without this a malformed URL or an unloaded model costs a full retry cascade
+    per item before the run aborts, and the underlying error is buried in the
+    retry warnings.
+    """
+    if base_url.count("://") > 1:
+        raise RuntimeError(
+            f"--vllm-base-url looks doubled: {base_url!r}. "
+            "Expected a single address such as https://host/path/v1"
+        )
+    parsed_url = parse.urlparse(base_url)
+    if parsed_url.scheme not in ("http", "https") or not parsed_url.hostname:
+        raise RuntimeError(
+            f"--vllm-base-url is not a valid http(s) URL: {base_url!r}"
+        )
+
+    url = f"{base_url.rstrip('/')}/models"
+    headers = {"Authorization": f"Bearer {api_key or 'EMPTY'}"}
+    try:
+        parsed = _http_get(url, headers, min(timeout_s, 30))
+    except error.HTTPError as exc:
+        # The server answered, so the address is right; the request was refused.
+        body = ""
+        try:
+            body = exc.read().decode("utf-8")[:300]
+        except Exception:
+            pass
+        hint = {
+            401: "The server rejected the token. Check the key is exported in this "
+                 "shell (echo ${VLLM_API_KEY:+set}) and matches the token you were "
+                 "given; use --vllm-key-env if it lives under another variable name.",
+            403: "Authenticated but not permitted to use this endpoint.",
+            404: "No /models endpoint at this path. Check whether the base URL "
+                 "should end in /v1.",
+        }.get(exc.code, "")
+        raise RuntimeError(
+            f"vLLM server at {url} returned HTTP {exc.code} ({exc.reason}). "
+            f"{hint}\nResponse body: {body}"
+        ) from exc
+    except Exception as exc:
+        raise RuntimeError(
+            f"Could not reach the vLLM server at {url}: {exc}\n"
+            "Check that the model has finished loading and that --vllm-base-url "
+            "is the server address including the /v1 suffix."
+        ) from exc
+
+    served = [entry.get("id") for entry in (parsed.get("data") or [])]
+    logging.info("vLLM server reachable; serving: %s", served)
+
+    for full_name in requested_models:
+        native_id = full_name.split("/", 1)[1]
+        if served and native_id not in served:
+            raise RuntimeError(
+                f"Model {native_id!r} is not served at this address. "
+                f"Available: {served}"
+            )
 
 
 def _http_post(url: str, payload: dict, headers: dict, timeout_s: int) -> dict:
@@ -138,7 +318,9 @@ def _http_post(url: str, payload: dict, headers: dict, timeout_s: int) -> dict:
     data = json.dumps(payload).encode("utf-8")
     req = request.Request(url, data=data, headers=headers, method="POST")
     with request.urlopen(req, timeout=timeout_s) as resp:
-        return json.loads(resp.read().decode("utf-8")), ts, safe_url
+        body = resp.read().decode("utf-8")
+    logging.debug("API RESPONSE ←\nURL: %s\nBody: %s", safe_url, body)
+    return json.loads(body), ts, safe_url
 
 
 # ── Base client ────────────────────────────────────────────────────────────
@@ -514,6 +696,138 @@ class QwenClient(OpenAICompatibleClient):
         return content, meta
 
 
+# ── Self-hosted vLLM ───────────────────────────────────────────────────────
+
+class VLLMClient(OpenAICompatibleClient):
+    """
+    Self-hosted vLLM OpenAI-compatible server (large open-weight models).
+
+    Two things differ from the commercial OpenAI-compatible providers:
+
+      - The base URL is supplied at run time (--vllm-base-url / VLLM_BASE_URL)
+        rather than fixed as a class constant, because each model is loaded
+        into its own short-lived serving session with its own address.
+
+      - How thinking is controlled varies by model family, so both levers are
+        used. chat_template_kwargs.enable_thinking is sent in BOTH conditions on
+        purpose (the inherited implementation applies reasoning params only when
+        reasoning is on, and omitting the flag leaves the template default in
+        force — thinking ON for several of these models, which under a 16-token
+        cap returns an empty content string). reasoning_effort is sent per
+        VLLM_REASONING_EFFORT / VLLM_NONREASONING_EFFORT, because on some models
+        it is the only lever that works: GLM-5.3 ignores enable_thinking
+        entirely and treats reasoning_effort=low as off rather than as a
+        reduced budget.
+
+    vLLM has no thinking-budget parameter, so reasoning length is bounded by
+    max_tokens (MAX_TOKENS_REASONING) rather than by a separate budget as on
+    Anthropic/Google/Qwen.
+    """
+
+    def __init__(self, api_key: Optional[str], base_url: str, timeout_s: int = 120):
+        # vLLM requires a bearer token to be present but ignores its value
+        # unless the server was started with --api-key.
+        super().__init__(api_key or "EMPTY", base_url, timeout_s)
+
+    def _build_reasoning_params(self, model_name: str, reasoning_effort: Optional[str]) -> dict:
+        enabled = bool(reasoning_effort and reasoning_effort != "none")
+        params: dict = {"chat_template_kwargs": {"enable_thinking": enabled}}
+
+        # Reasoning condition: the same effort level the proprietary panel used
+        # (SI Table S4 — reasoning_effort=low for OpenAI, a 1024-token budget
+        # elsewhere). Non-reasoning condition: normally nothing, but for models
+        # whose effort parameter has no "off" level we send the lowest one
+        # rather than let it default to max (see VLLM_NONREASONING_EFFORT).
+        # NOTE: GLM-5.3 accepts only low/high/max and treats anything else as
+        # max, so REASONING_CONDITIONS must keep using one of those labels.
+        effort = reasoning_effort
+        if enabled:
+            for pattern, level in VLLM_REASONING_EFFORT.items():
+                if pattern in model_name:
+                    effort = level
+                    break
+        elif _template_forces_thinking(model_name):
+            effort = VLLM_NONREASONING_EFFORT
+        if effort:
+            params["reasoning_effort"] = effort
+        return params
+
+    def chat_completion(self, model_name, messages, *, max_tokens, temperature,
+                        top_p, reasoning_effort, hide_reasoning):
+        use_reasoning = bool(reasoning_effort and reasoning_effort != "none")
+        effective_max_tokens = MAX_TOKENS_REASONING if use_reasoning else max_tokens
+        reasoning_params = self._build_reasoning_params(model_name, reasoning_effort)
+
+        # Templates that force an open <think> need the non-reasoning condition
+        # built by prefilling a closed thinking block (see VLLM_THINK_PREFILL_MODELS).
+        think_prefill = not use_reasoning and _template_forces_thinking(model_name)
+        if think_prefill:
+            messages = list(messages) + [
+                {"role": "assistant", "content": THINK_PREFILL_CONTENT}
+            ]
+
+        payload: dict = {
+            "model":       model_name,
+            "messages":    messages,
+            "max_tokens":  effective_max_tokens,
+            "temperature": temperature,
+            "top_p":       top_p,
+            "n":           1,
+            "stream":      False,
+        }
+        payload.update(reasoning_params)   # unconditional; see class docstring
+        if think_prefill:
+            # Continue the prefilled assistant turn instead of opening a new one.
+            payload["continue_final_message"] = True
+            payload["add_generation_prompt"] = False
+
+        meta: dict = {
+            "provider":                       "vllm",
+            "requested_model":                model_name,
+            "param_temperature":              temperature,
+            "param_top_p":                    top_p,
+            "param_max_tokens":               effective_max_tokens,
+            "param_enable_thinking":          use_reasoning,
+            "param_reasoning_effort_input":   reasoning_effort,
+            # What was actually transmitted, which differs from the condition's
+            # input label wherever a per-model override applies.
+            "param_reasoning_effort_sent":    reasoning_params.get("reasoning_effort"),
+            "param_thinking_budget":          None,   # not a vLLM parameter
+            "param_think_prefill":            think_prefill,
+            "temperature_forced_by_thinking": False,
+        }
+
+        headers = {
+            "Content-Type":  "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+        }
+        url = f"{self.base_url}/chat/completions"
+        parsed, ts, req_url = _http_post(url, payload, headers, self.timeout_s)
+
+        usage = parsed.get("usage") or {}
+        meta["response_model"]          = parsed.get("model")
+        meta["response_created_unix"]   = parsed.get("created")
+        meta["usage_prompt_tokens"]     = usage.get("prompt_tokens")
+        meta["usage_completion_tokens"] = usage.get("completion_tokens")
+        meta["usage_reasoning_tokens"]  = (
+            (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
+        )
+        meta["usage_cost"]    = None   # self-hosted
+        meta["timestamp_utc"] = ts
+        meta["request_url"]   = req_url
+
+        choice  = (parsed.get("choices") or [{}])[0]
+        content = (choice.get("message") or {}).get("content") or ""
+        meta["finish_reason"] = choice.get("finish_reason")
+        # Present only when the server runs with a --reasoning-parser; otherwise
+        # the thinking text stays inline in content.
+        reasoning_content = (choice.get("message") or {}).get("reasoning_content") or ""
+        if reasoning_content and not hide_reasoning:
+            meta["thinking_content"] = reasoning_content
+
+        return content, meta
+
+
 # ── Google Generative Language ─────────────────────────────────────────────
 
 class GoogleClient(BaseAPIClient):
@@ -626,6 +940,7 @@ class RoutingClient:
         "google":    "google",
         "qwen":      "qwen",
         "x-ai":      "xai",
+        "vllm":      "vllm",
     }
 
     def __init__(
@@ -635,6 +950,8 @@ class RoutingClient:
         google_key: Optional[str] = None,
         qwen_key: Optional[str] = None,
         xai_key: Optional[str] = None,
+        vllm_key: Optional[str] = None,
+        vllm_base_url: Optional[str] = None,
         timeout_s: int = 120,
     ):
         self._clients: Dict[str, BaseAPIClient] = {}
@@ -648,6 +965,17 @@ class RoutingClient:
             self._clients["qwen"] = QwenClient(qwen_key, timeout_s)
         if xai_key:
             self._clients["xai"] = XAIClient(xai_key, timeout_s)
+        # Registered on the base URL, not the key: a vLLM server started
+        # without --api-key accepts any bearer token.
+        if vllm_base_url:
+            self._clients["vllm"] = VLLMClient(vllm_key, vllm_base_url, timeout_s)
+
+    def provider_for(self, full_model_name: str) -> Optional[str]:
+        """Provider name for a model string, or None if no prefix matches."""
+        for prefix, provider in self._PREFIX_TO_PROVIDER.items():
+            if full_model_name.startswith(f"{prefix}/"):
+                return provider
+        return None
 
     def resolve(self, full_model_name: str) -> Tuple[str, BaseAPIClient]:
         """Extracts provider to send API request to and model name separately from input provider/model_name"""
@@ -700,6 +1028,8 @@ class APIModelManager:
         max_retries: int = 2,
         retry_backoff_s: float = 2.0,
         max_total_retries: int = 12,
+        cache_path: Optional[str] = None,
+        served_quantization: Optional[str] = None,
     ):
         self.model_names = model_names
         self.outputs_dir = outputs_dir
@@ -707,6 +1037,8 @@ class APIModelManager:
         self.max_retries = max_retries
         self.retry_backoff_s = retry_backoff_s
         self.max_total_retries = max_total_retries
+        self.cache_path = cache_path
+        self.served_quantization = served_quantization
 
         self.current_model_name: Optional[str] = None
         self.current_model_key: Optional[str] = None
@@ -715,6 +1047,79 @@ class APIModelManager:
         self.abort_model: bool = False
 
         os.makedirs(self.outputs_dir, exist_ok=True)
+        self._cache: Dict[str, dict] = {}
+        self._load_cache()
+
+    # ── response cache (resumability) ──────────────────────────────────────
+    # A vLLM serving session can disappear between the queue wait and the end
+    # of a run, and the reasoning condition is slow enough that losing an
+    # in-flight task is likely. Answers are keyed by (model key, condition,
+    # messages) and appended to a JSONL sidecar, so re-running an interrupted
+    # model replays what was already collected and only calls the API for the
+    # items still missing.
+    #
+    # The cache is also the provenance record, not merely a convenience: in the
+    # reasoning condition an identical request does NOT reproduce, even greedily
+    # (see GEN_PARAMS_REASONING_OVERRIDES), so a replayed answer is the answer
+    # that was actually collected rather than one the model would necessarily
+    # give again. Keep the JSONL alongside the CSVs when archiving.
+
+    def _load_cache(self):
+        if not self.cache_path or not os.path.exists(self.cache_path):
+            return
+        with open(self.cache_path, encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    logging.warning("Skipping unreadable cache line in %s", self.cache_path)
+                    continue
+                self._cache[rec["key"]] = rec
+        logging.info("Loaded %d cached responses from %s", len(self._cache), self.cache_path)
+
+    def _cache_key(self, messages: List[dict]) -> str:
+        payload = json.dumps(
+            {
+                "protocol":  CACHE_PROTOCOL_VERSION,
+                "model_key": self.current_model_key,
+                "model":     self.current_model_name,
+                "effort":    self.current_reasoning_effort,
+                "params":    self._gen_params(),
+                "messages":  messages,
+            },
+            sort_keys=True,
+            ensure_ascii=False,
+        )
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    def _cache_store(self, key: str, raw: str, meta: dict):
+        rec = {"key": key, "raw": raw, "meta": meta}
+        self._cache[key] = rec
+        if not self.cache_path:
+            return
+        with open(self.cache_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+    # ── per-call parameters ────────────────────────────────────────────────
+
+    def _gen_params(self) -> dict:
+        """Generation parameters for the current model and condition."""
+        if not self.current_reasoning_effort:
+            return GEN_PARAMS
+        provider = self.router.provider_for(self.current_model_name or "")
+        return GEN_PARAMS_REASONING_OVERRIDES.get(provider, GEN_PARAMS_REASONING)
+
+    def _serving_notes(self) -> dict:
+        """Serving details the API does not return (dtype/quantization)."""
+        notes: dict = {}
+        for pattern, values in MODEL_SERVING_NOTES.items():
+            if pattern in (self.current_model_name or ""):
+                notes.update(values)
+        if self.served_quantization:
+            notes["served_quantization"] = self.served_quantization
+        return notes
 
     # ── task loading ───────────────────────────────────────────────────────
 
@@ -749,6 +1154,47 @@ class APIModelManager:
         logging.warning("Could not parse valid answer from: %r", text)
         return ""
 
+    def _answer_from_raw(self, raw: str, meta: dict, valid_answers: List[str],
+                         answer_pattern) -> str:
+        """Extract the answer, ignoring any inline chain of thought.
+
+        `raw` is kept intact in the output CSV; only the text used for matching
+        is narrowed to what follows the final </think>.
+        """
+        visible, reasoning = _split_inline_reasoning(raw)
+        if reasoning is not None:
+            meta["inline_reasoning_stripped"] = True
+            meta.setdefault("thinking_content", reasoning)
+
+        if meta.get("finish_reason") in TRUNCATED_FINISH_REASONS:
+            # The model was cut off mid-generation. Trust the output only if it
+            # had already closed its reasoning, or if what came back is itself
+            # exactly a valid answer; otherwise matching against a partial
+            # response would invent an answer the model never gave.
+            if reasoning is None and visible.strip() not in valid_answers:
+                meta["truncated_no_answer"] = True
+                logging.warning(
+                    "Truncated before an answer was produced | model %r | condition %r "
+                    "| recording missing. Partial output: %r",
+                    self.current_model_name, self.current_reasoning_effort, visible[:120],
+                )
+                return ""
+        return self._extract_answer(visible, valid_answers, answer_pattern)
+
+    def _build_probs_dict(self, raw: str, meta: dict) -> dict:
+        """Per-call record. Every key here becomes a column in the output CSV."""
+        probs_dict = {
+            "raw_answer": raw,
+            "requested_model": self.current_model_name,
+            "condition": next(
+                (s for s, e in REASONING_CONDITIONS if e == self.current_reasoning_effort),
+                UNKNOWN_CONDITION_LABEL,
+            ),
+        }
+        probs_dict.update(meta)
+        probs_dict.update(self._serving_notes())
+        return probs_dict
+
     # ── generation (injected into base_functions) ──────────────────────────
 
     def _api_generate_answer_and_logits(
@@ -760,9 +1206,23 @@ class APIModelManager:
         last_err = None
         raw, meta = "", {}
 
+        cache_key = self._cache_key(messages)
+        cached = self._cache.get(cache_key)
+        if cached is not None and cached.get("meta", {}).get("finish_reason") in TRUNCATED_FINISH_REASONS:
+            # A truncated response carries no usable answer; re-request it rather
+            # than replaying a dead cell on every resume.
+            cached = None
+        if cached is not None:
+            meta = dict(cached["meta"])
+            meta["from_cache"] = True
+            answer = self._answer_from_raw(
+                cached["raw"], meta, valid_answers, ANSWER_PATTERN
+            )
+            return answer, {}, self._build_probs_dict(cached["raw"], meta)
+
         for attempt in range(1, self.max_retries + 1):
             try:
-                params = GEN_PARAMS_REASONING if self.current_reasoning_effort else GEN_PARAMS
+                params = self._gen_params()
                 raw, meta = self.router.chat_completion(
                     self.current_model_name,
                     messages,
@@ -820,35 +1280,27 @@ class APIModelManager:
 
         if last_err is not None and not raw:
             logging.error("API generation failed. Last error: %s", last_err)
-            probs_dict = {
-                "raw_answer": "ERROR",
-                "requested_model": self.current_model_name,
-                "condition": next(
-                    (s for s, e in REASONING_CONDITIONS if e == self.current_reasoning_effort),
-                    UNKNOWN_CONDITION_LABEL,
-                ),
-            }
-            probs_dict.update(meta)
-            return "ERROR", {}, probs_dict
+            # Deliberately not cached: a failed cell must be retried on resume.
+            return "ERROR", {}, self._build_probs_dict("ERROR", meta)
 
-        answer = self._extract_answer(raw, valid_answers, ANSWER_PATTERN)
-        probs_dict = {
-            "raw_answer": raw,
-            "requested_model": self.current_model_name,
-            "condition": next(
-                (s for s, e in REASONING_CONDITIONS if e == self.current_reasoning_effort),
-                UNKNOWN_CONDITION_LABEL,
-            ),
-        }
-        probs_dict.update(meta)
-        return answer, {}, probs_dict
+        self._cache_store(cache_key, raw, meta)
+        answer = self._answer_from_raw(raw, meta, valid_answers, ANSWER_PATTERN)
+        return answer, {}, self._build_probs_dict(raw, meta)
 
     # ── task runner ────────────────────────────────────────────────────────
 
     def run_task(self, task_module, task_name: str, context_modes=("no_context", "with_context")) -> Optional[pd.DataFrame]:
+        # Report the condition suffix (nr/r), not the effort label: the two come
+        # apart wherever VLLM_REASONING_EFFORT overrides the panel-wide value,
+        # and printing "condition 'low'" for a run that transmits max is
+        # needlessly confusing.
+        condition = next(
+            (s for s, e in REASONING_CONDITIONS if e == self.current_reasoning_effort),
+            UNKNOWN_CONDITION_LABEL,
+        )
         logging.info(
             "Running task %r | model %r | condition %r",
-            task_name, self.current_model_key, self.current_reasoning_effort,
+            task_name, self.current_model_key, condition,
         )
         orig_bf = base_functions.generate_answer_and_logits
         orig_tm = getattr(task_module, "generate_answer_and_logits", None)
@@ -947,6 +1399,21 @@ def parse_args():
     p.add_argument("--google-key-env",    default="GOOGLE_API_KEY")
     p.add_argument("--qwen-key-env",      default="DASHSCOPE_API_KEY")
     p.add_argument("--xai-key-env",       default="XAI_API_KEY")
+    p.add_argument("--vllm-key-env",      default="VLLM_API_KEY")
+
+    # Self-hosted vLLM: the address changes per serving session, so it is a
+    # run-time argument. Falls back to $VLLM_BASE_URL.
+    p.add_argument("--vllm-base-url", default="",
+                   help="Base URL of the vLLM OpenAI-compatible server, e.g. https://host/v1")
+    p.add_argument("--served-quantization", default="",
+                   help="Served dtype/quantization for the models in this run (e.g. bf16, fp8). "
+                        "No API reports this, so it is recorded from the command line.")
+    p.add_argument("--resume-cache", default="",
+                   help="Path to the response cache. Defaults to <outputs-dir>/response_cache.jsonl")
+    p.add_argument("--no-resume-cache", action="store_true",
+                   help="Disable the response cache (every item is re-requested).")
+    p.add_argument("--skip-preflight", action="store_true",
+                   help="Skip the vLLM reachability/model check before the run.")
     return p.parse_args()
 
 
@@ -968,15 +1435,38 @@ def main():
     if not model_names:
         raise RuntimeError("No models provided.")
 
+    vllm_base_url = args.vllm_base_url or os.environ.get("VLLM_BASE_URL", "")
+    vllm_models = [m for m in model_names if m.startswith("vllm/")]
+    if vllm_models and not vllm_base_url:
+        raise RuntimeError(
+            "vllm/ models requested but no server address given. "
+            "Pass --vllm-base-url or set VLLM_BASE_URL."
+        )
+    if vllm_models and not args.skip_preflight:
+        preflight_vllm(
+            vllm_base_url,
+            os.environ.get(args.vllm_key_env),
+            args.timeout,
+            vllm_models,
+        )
+
     router = RoutingClient(
         anthropic_key=os.environ.get(args.anthropic_key_env),
         openai_key=os.environ.get(args.openai_key_env),
         google_key=os.environ.get(args.google_key_env),
         qwen_key=os.environ.get(args.qwen_key_env),
         xai_key=os.environ.get(args.xai_key_env),
+        vllm_key=os.environ.get(args.vllm_key_env),
+        vllm_base_url=vllm_base_url,
         timeout_s=args.timeout,
     )
 
+    cache_path = None
+    if not args.no_resume_cache:
+        cache_path = args.resume_cache or os.path.join(
+            args.outputs_dir, "response_cache.jsonl"
+        )
+        os.makedirs(args.outputs_dir, exist_ok=True)
 
     manager = APIModelManager(
         model_names=model_names,
@@ -985,6 +1475,8 @@ def main():
         max_retries=args.max_retries,
         retry_backoff_s=args.retry_backoff,
         max_total_retries=args.max_total_retries,
+        cache_path=cache_path,
+        served_quantization=args.served_quantization or None,
     )
 
     task_paths = manager.discover_tasks(args.task_dir)
