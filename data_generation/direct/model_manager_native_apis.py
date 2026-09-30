@@ -240,8 +240,36 @@ VLLM_THINKING_KWARG: Dict[str, Tuple[str, object, object]] = {
     # through to the adaptive branch, i.e. no off switch at all.
     # Read from chat_template.jinja, 30 Sep 2026.
     "MiniMax-M3": ("thinking_mode", "enabled", "disabled"),
+    # DeepSeek-V4.1 uses the same kwarg NAME as MiniMax with different VALUES:
+    # encoding.py's thinking_mode is "thinking" / "chat". In "chat" the prompt
+    # ends on a closed </think>, so this model does not belong in
+    # VLLM_THINK_PREFILL_MODELS either.
+    "DeepSeek-V4.1-Flash": ("thinking_mode", "thinking", "chat"),
 }
 VLLM_THINKING_KWARG_DEFAULT: Tuple[str, object, object] = ("enable_thinking", True, False)
+
+# Models that ship NO chat template, for which we send one with every request.
+#
+# deepseek-ai/DeepSeek-V4.1-Flash is the case: the repo has no chat_template.jinja
+# and no chat_template key in tokenizer_config.json, and the model card states the
+# omission is deliberate. vLLM's ChatCompletionRequest accepts a per-request
+# `chat_template` field and resolves it as `request.chat_template or
+# default_template`, so supplying it here needs nothing from whoever launched the
+# server -- which matters, because we cannot pass launch arguments.
+#
+# Caveat to confirm on the live endpoint before a full run: the server-side
+# `trust_request_chat_template` flag (vllm/entrypoints/chat_utils.py) defaults to
+# False and may reject request-supplied templates. The preflight tests exactly
+# this and says so plainly.
+#
+# The template is part of the instrument, not a transport detail: a subtly wrong
+# one does not error, it changes the prompt the model is administered. Never edit
+# the .jinja without re-running validate_deepseek_template.py, which diffs it
+# against DeepSeek's own encoding.py over the real item set.
+VLLM_REQUEST_CHAT_TEMPLATE: Dict[str, str] = {
+    "DeepSeek-V4.1-Flash": "chat_templates/deepseek_v41.jinja",
+}
+_CHAT_TEMPLATE_CACHE: Dict[str, Tuple[str, str]] = {}
 
 
 def _thinking_kwarg(model_name: str) -> Tuple[str, object, object]:
@@ -250,6 +278,33 @@ def _thinking_kwarg(model_name: str) -> Tuple[str, object, object]:
         if pattern in model_name:
             return spec
     return VLLM_THINKING_KWARG_DEFAULT
+
+
+def _request_chat_template(model_name: str) -> Tuple[Optional[str], Optional[str]]:
+    """(template_text, sha256[:12]) to send with each request, or (None, None).
+
+    The digest goes into the per-row metadata and the response-cache key, so a
+    changed template cannot silently replay answers collected under the old one.
+    """
+    for pattern, rel_path in VLLM_REQUEST_CHAT_TEMPLATE.items():
+        if pattern not in model_name:
+            continue
+        if pattern not in _CHAT_TEMPLATE_CACHE:
+            path = Path(__file__).resolve().parent / rel_path
+            try:
+                text = path.read_text(encoding="utf-8")
+            except OSError as exc:
+                raise RuntimeError(
+                    f"{model_name} needs the chat template at {path}, which could "
+                    f"not be read: {exc}. This model ships none of its own, so the "
+                    f"run cannot proceed without it."
+                ) from exc
+            digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+            _CHAT_TEMPLATE_CACHE[pattern] = (text, digest)
+            logging.info("Sending request chat template %s (sha %s) for %s",
+                         rel_path, digest, model_name)
+        return _CHAT_TEMPLATE_CACHE[pattern]
+    return None, None
 
 
 def _template_forces_thinking(model_name: str) -> bool:
@@ -371,6 +426,66 @@ def preflight_vllm(base_url: str, api_key: Optional[str], timeout_s: int,
                 f"Model {native_id!r} is not served at this address. "
                 f"Available: {served}"
             )
+        _preflight_request_chat_template(base_url, api_key, timeout_s, native_id)
+
+
+def _preflight_request_chat_template(base_url: str, api_key: Optional[str],
+                                     timeout_s: int, native_id: str) -> None:
+    """For models that ship no chat template, check the server accepts ours.
+
+    vLLM can take a chat template per request, which is the only route open to us
+    because we cannot pass launch arguments. But the server-side
+    trust_request_chat_template flag can disable that route, and the failure would
+    otherwise surface as a wall of retries on the first item. One tiny request
+    settles it before the battery starts.
+    """
+    template, digest = _request_chat_template(native_id)
+    if not template:
+        return
+
+    payload = {
+        "model": native_id,
+        "messages": [{"role": "user", "content": "hi"}],
+        "max_tokens": 1,
+        "temperature": 0.0,
+        # Deliberately NOT the real template: this probes whether the server
+        # honours a request-supplied one at all, so it must be trivially valid
+        # and obviously distinguishable from the template we actually send.
+        "chat_template": "{% for m in messages %}{{ m.content }}{% endfor %}",
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key or 'EMPTY'}",
+    }
+    try:
+        _http_post(f"{base_url.rstrip('/')}/chat/completions", payload, headers,
+                   min(timeout_s, 60))
+    except error.HTTPError as exc:
+        body = ""
+        try:
+            body = exc.read().decode("utf-8")[:400]
+        except Exception:
+            pass
+        raise RuntimeError(
+            f"{native_id} ships no chat template of its own, so one has to be sent "
+            f"with each request — and this server rejected a request-supplied "
+            f"template (HTTP {exc.code}).\n"
+            f"Response body: {body}\n"
+            "If the message mentions trust_request_chat_template, the server was "
+            "started without that option and the template has to be passed at "
+            "launch instead (--chat-template), which needs whoever runs the "
+            "serving session. That is a restart, so raise it before the model is "
+            "loaded rather than after."
+        ) from exc
+    except Exception as exc:
+        raise RuntimeError(
+            f"Could not verify request-supplied chat templates for {native_id}: {exc}"
+        ) from exc
+
+    logging.info(
+        "Server accepts request-supplied chat templates; %s will be administered "
+        "with chat_templates/ sha %s", native_id, digest,
+    )
 
 
 def _http_post(url: str, payload: dict, headers: dict, timeout_s: int) -> dict:
@@ -850,6 +965,13 @@ class VLLMClient(OpenAICompatibleClient):
             "stream":      False,
         }
         payload.update(reasoning_params)   # unconditional; see class docstring
+
+        # Models that ship no chat template get ours with every request, which
+        # avoids needing --chat-template at launch (see VLLM_REQUEST_CHAT_TEMPLATE).
+        chat_template, chat_template_sha = _request_chat_template(model_name)
+        if chat_template:
+            payload["chat_template"] = chat_template
+
         if think_prefill:
             # Continue the prefilled assistant turn instead of opening a new one.
             payload["continue_final_message"] = True
@@ -869,6 +991,11 @@ class VLLMClient(OpenAICompatibleClient):
             "param_thinking_kwarg":           json.dumps(
                 reasoning_params.get("chat_template_kwargs"), sort_keys=True
             ),
+            # Identifies the chat template this prompt was rendered with, for
+            # models where we supply it. None means the server used the model's
+            # own. This is instrument provenance: without it there is no record
+            # in the data of which prompt format the answers were given under.
+            "param_chat_template_sha":        chat_template_sha,
             "param_reasoning_effort_input":   reasoning_effort,
             # What was actually transmitted, which differs from the condition's
             # input label wherever a per-model override applies.
@@ -1161,18 +1288,22 @@ class APIModelManager:
         logging.info("Loaded %d cached responses from %s", len(self._cache), self.cache_path)
 
     def _cache_key(self, messages: List[dict]) -> str:
-        payload = json.dumps(
-            {
-                "protocol":  CACHE_PROTOCOL_VERSION,
-                "model_key": self.current_model_key,
-                "model":     self.current_model_name,
-                "effort":    self.current_reasoning_effort,
-                "params":    self._gen_params(),
-                "messages":  messages,
-            },
-            sort_keys=True,
-            ensure_ascii=False,
-        )
+        key_parts = {
+            "protocol":  CACHE_PROTOCOL_VERSION,
+            "model_key": self.current_model_key,
+            "model":     self.current_model_name,
+            "effort":    self.current_reasoning_effort,
+            "params":    self._gen_params(),
+            "messages":  messages,
+        }
+        # Where we supply the chat template, it determines the prompt as much as
+        # the messages do, so it belongs in the key. Added only when one is in
+        # play: an absent key leaves the hash of every other model untouched, so
+        # this does not orphan the GLM-5.3-Flash cache.
+        _, chat_template_sha = _request_chat_template(self.current_model_name or "")
+        if chat_template_sha:
+            key_parts["chat_template"] = chat_template_sha
+        payload = json.dumps(key_parts, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def _cache_store(self, key: str, raw: str, meta: dict):

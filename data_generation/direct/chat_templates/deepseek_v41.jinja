@@ -1,0 +1,79 @@
+{#-
+  DeepSeek-V4.1 chat template, authored for this project.
+
+  WHY THIS FILE EXISTS. deepseek-ai/DeepSeek-V4.1-Flash ships no Jinja chat
+  template -- the model card says so outright -- so vLLM has nothing to render
+  /v1/chat/completions with. What DeepSeek ship instead is encoding/encoding.py,
+  a Python reference implementation. This template reproduces that reference for
+  exactly the prompt shape this protocol uses, and refuses everything else.
+
+  SCOPE: one optional system message at index 0, exactly one user message, no
+  tools, no images, no assistant history, no task tokens. That is the whole of
+  our administration (each item is a fresh chat, SI A.5). Any other message
+  shape raises instead of silently producing a prompt the model was not trained
+  on -- a wrong prompt here would not error at the API, it would quietly change
+  what the instrument measures.
+
+  TARGET STRINGS, verified by running encoding.py (see validate_deepseek_template.py,
+  which diffs this template against it over the real item set):
+
+    thinking_mode="chat"
+      <｜begin▁of▁sentence｜><｜System｜>{system}<｜User｜>{user}<｜Assistant｜></think>
+
+    thinking_mode="thinking"
+      <｜begin▁of▁sentence｜><｜System｜>Reasoning Effort: {n} (range 1-100, the higher
+      the value, the more thorough the reasoning)\n\n{system}<｜User｜>{user}<｜Assistant｜><think>
+
+  Do not take the format from the model card's prose: its "Basic chat" section
+  shows the system message bare, but the reference wraps it in <｜System｜> in
+  both modes.
+
+  KWARGS. thinking_mode is "thinking" or "chat" (encoding.py's own names, not
+  MiniMax's enabled/disabled). reasoning_effort arrives as one of vLLM's Literal
+  strings and is mapped to DeepSeek's numeric budget here, because vLLM's
+  reasoning_effort field rejects integers -- low=50, high=75, max=100, matching
+  REASONING_EFFORT_MAPPINGS in encoding.py. The effort prefix is rendered only in
+  thinking mode and only at conversation index 0, as in the reference.
+
+  BOS is emitted literally, matching encoding.py's add_default_bos_token=True.
+  tokenizer_config.json sets "add_bos_token": false, so the tokenizer will not
+  add a second one -- but verify prompt_tokens on the first smoke test anyway.
+-#}
+{%- set effort_map = {'low': 50, 'high': 75, 'max': 100} -%}
+{%- set think_mode = thinking_mode if thinking_mode is defined and thinking_mode else 'thinking' -%}
+{%- if think_mode not in ['thinking', 'chat'] -%}
+    {{- raise_exception('deepseek_v41 template: thinking_mode must be "thinking" or "chat", got ' ~ think_mode) -}}
+{%- endif -%}
+{%- set ns = namespace(system=none, user=none, n_user=0) -%}
+{%- for m in messages -%}
+    {%- if m.role == 'system' -%}
+        {%- if loop.index0 != 0 -%}
+            {{- raise_exception('deepseek_v41 template: a system message must come first; mid-conversation system messages are out of scope') -}}
+        {%- endif -%}
+        {%- set ns.system = m.content -%}
+    {%- elif m.role == 'user' -%}
+        {%- set ns.user = m.content -%}
+        {%- set ns.n_user = ns.n_user + 1 -%}
+    {%- else -%}
+        {{- raise_exception('deepseek_v41 template: only system and user messages are in scope, got role ' ~ m.role) -}}
+    {%- endif -%}
+{%- endfor -%}
+{%- if ns.n_user != 1 -%}
+    {{- raise_exception('deepseek_v41 template: exactly one user message is required, got ' ~ ns.n_user) -}}
+{%- endif -%}
+{{- '<｜begin▁of▁sentence｜>' -}}
+{%- if think_mode == 'thinking' -%}
+    {%- set eff = reasoning_effort if reasoning_effort is defined and reasoning_effort else 'high' -%}
+    {%- if eff not in effort_map -%}
+        {{- raise_exception('deepseek_v41 template: reasoning_effort must be one of low/high/max, got ' ~ eff) -}}
+    {%- endif -%}
+    {{- '<｜System｜>Reasoning Effort: ' ~ effort_map[eff] ~ ' (range 1-100, the higher the value, the more thorough the reasoning)\n\n' -}}
+    {{- ns.system if ns.system is not none else '' -}}
+{%- elif ns.system is not none -%}
+    {{- '<｜System｜>' ~ ns.system -}}
+{%- endif -%}
+{{- '<｜User｜>' ~ ns.user -}}
+{%- if add_generation_prompt is not defined or add_generation_prompt -%}
+    {{- '<｜Assistant｜>' -}}
+    {{- '<think>' if think_mode == 'thinking' else '</think>' -}}
+{%- endif -%}
