@@ -48,8 +48,15 @@ import base_functions
 # ── Logging ────────────────────────────────────────────────────────────────
 
 os.makedirs("outputs_api", exist_ok=True)
+# The PID is part of the name because the large open-weight models are served on
+# separate endpoints and are therefore collected in PARALLEL, one process per
+# model. The timestamp alone has second resolution, so processes launched
+# together would share one log file, append to it concurrently and tear each
+# other's lines -- and this file is the verbatim request/response record that
+# gets archived, not a convenience.
 log_file = os.path.join(
-    "outputs_api", f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    "outputs_api",
+    f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{os.getpid()}.log",
 )
 # The file handler records at DEBUG so that the request payload and the full
 # response body of every call are kept verbatim; the console stays at INFO so
@@ -271,6 +278,22 @@ VLLM_REQUEST_CHAT_TEMPLATE: Dict[str, str] = {
 }
 _CHAT_TEMPLATE_CACHE: Dict[str, Tuple[str, str]] = {}
 
+# Whether to put the template in the REQUEST. Confirmed 1 Oct 2026: our MPCDF
+# deployment refuses that outright —
+#   "Chat template is passed with request, but --trust-request-chat-template is
+#    not set. Refused request with untrusted chat template." (HTTP 400)
+# so the server has to be launched with one of:
+#   --trust-request-chat-template          -> leave this True, code unchanged
+#   --chat-template <the .jinja>            -> set False via --chat-template-at-launch,
+#                                              or every request is refused again
+# Prefer the first: it is one flag, needs no file on the server host, and lets the
+# template be corrected without another 0.5-1.5 h reload.
+#
+# The digest still goes into the metadata and the cache key either way. The prompt
+# is determined by this template in both modes, so the provenance record and the
+# cache identity must not depend on which mode delivered it.
+SEND_REQUEST_CHAT_TEMPLATE = True
+
 
 def _thinking_kwarg(model_name: str) -> Tuple[str, object, object]:
     """The (kwarg, on_value, off_value) triple that controls thinking."""
@@ -442,6 +465,14 @@ def _preflight_request_chat_template(base_url: str, api_key: Optional[str],
     template, digest = _request_chat_template(native_id)
     if not template:
         return
+    if not SEND_REQUEST_CHAT_TEMPLATE:
+        logging.info(
+            "%s: not sending a chat template with requests (--chat-template-at-launch). "
+            "The server must have been started with --chat-template pointing at the "
+            "same file, sha %s, or the prompts will not match what was validated.",
+            native_id, digest,
+        )
+        return
 
     payload = {
         "model": native_id,
@@ -471,11 +502,14 @@ def _preflight_request_chat_template(base_url: str, api_key: Optional[str],
             f"with each request — and this server rejected a request-supplied "
             f"template (HTTP {exc.code}).\n"
             f"Response body: {body}\n"
-            "If the message mentions trust_request_chat_template, the server was "
-            "started without that option and the template has to be passed at "
-            "launch instead (--chat-template), which needs whoever runs the "
-            "serving session. That is a restart, so raise it before the model is "
-            "loaded rather than after."
+            "Seen on the MPCDF deployment, 1 Oct 2026: 'Chat template is passed "
+            "with request, but --trust-request-chat-template is not set.' Either "
+            "flag fixes it, and they need a restart by whoever runs the serving "
+            "session:\n"
+            "  --trust-request-chat-template   preferred; this code then works "
+            "unchanged, and the template can be corrected without another reload\n"
+            f"  --chat-template <the .jinja>    then re-run with "
+            f"--chat-template-at-launch so the request stops carrying it (sha {digest})"
         ) from exc
     except Exception as exc:
         raise RuntimeError(
@@ -969,7 +1003,7 @@ class VLLMClient(OpenAICompatibleClient):
         # Models that ship no chat template get ours with every request, which
         # avoids needing --chat-template at launch (see VLLM_REQUEST_CHAT_TEMPLATE).
         chat_template, chat_template_sha = _request_chat_template(model_name)
-        if chat_template:
+        if chat_template and SEND_REQUEST_CHAT_TEMPLATE:
             payload["chat_template"] = chat_template
 
         if think_prefill:
@@ -1626,11 +1660,22 @@ def parse_args():
                    help="Disable the response cache (every item is re-requested).")
     p.add_argument("--skip-preflight", action="store_true",
                    help="Skip the vLLM reachability/model check before the run.")
+    p.add_argument("--chat-template-at-launch", action="store_true",
+                   help="Do not send the chat template with each request, because the "
+                        "server was started with --chat-template pointing at the same "
+                        "file. Use only for models in VLLM_REQUEST_CHAT_TEMPLATE, and "
+                        "only when the server was NOT given "
+                        "--trust-request-chat-template (which would make sending it "
+                        "work and is the simpler arrangement).")
     return p.parse_args()
 
 
 def main():
     args = parse_args()
+
+    if args.chat_template_at_launch:
+        global SEND_REQUEST_CHAT_TEMPLATE
+        SEND_REQUEST_CHAT_TEMPLATE = False
 
     def _load_models_file(path: str) -> List[str]:
         with open(path, encoding="utf-8") as f:
