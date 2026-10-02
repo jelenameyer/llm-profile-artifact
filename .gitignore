@@ -66,3 +66,6 @@ Claude.md
 vllm_models.txt
 probe_thinking.py
 VLLM_RUN_NOTES.md
+endpoints.env.example
+run_parallel_large.sh
+wait_for_endpoints.py
