@@ -69,3 +69,4 @@ VLLM_RUN_NOTES.md
 endpoints.env.example
 run_parallel_large.sh
 wait_for_endpoints.py
+run_logs/
