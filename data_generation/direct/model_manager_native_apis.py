@@ -21,9 +21,18 @@ under outputs_api/.
 
 Usage: python model_manager_native_apis.py --models-file api_models.txt
 
-For the large open-weight models served on our own vLLM instance, see
-vllm_models.txt: one model is hosted at a time, so each is run separately
-with its own --vllm-base-url.
+The large open-weight models were served on a self-hosted vLLM instance, one at a
+time, so each was run separately with its own --vllm-base-url and --vllm-key-env:
+
+    python model_manager_native_apis.py \
+        --models vllm/<org>/<model> \
+        --vllm-base-url https://<host>/v1 --vllm-key-env <ENV_VAR_NAME> \
+        --task-filter barratt,care,dast,dfd,dm,dospert,gabs,ipipneo,lot,mpl,pri,soep,sssv \
+        --timeout 600 --outputs-dir outputs_api_<model>
+
+--task-filter is required for those runs: discover_tasks() globs every *.py in
+tasks/, which otherwise pulls in the *_flipped.py variants that the proprietary
+panel never ran.
 """
 
 import abc
@@ -136,49 +145,37 @@ MODEL_REQUEST_DELAY_S: Dict[str, float] = {
 # thinking; a self-hosted vLLM server has no such constraint, so the reasoning
 # condition is run greedily there.
 #
-# NOTE: greedy does NOT mean reproducible for long reasoning chains. Repeating
-# the identical SOEP request on GLM-5.3-Flash at temperature 0 produced a
-# different chain of thought on 7/7 items and a different final answer on 2/7
-# (30 Sep 2026). Continuous batching changes floating-point reduction order
-# between requests, and the difference compounds over hundreds of tokens. The
-# single-observation caveat in SI A.10 therefore applies to this condition as
-# well, and the response cache is the only record of what was actually collected.
+# NOTE: greedy does NOT mean reproducible. Identical requests at temperature 0
+# returned different chains of thought, and sometimes different answers, on
+# several of these models -- continuous batching changes floating-point reduction
+# order, and the difference compounds over hundreds of tokens. So the
+# single-observation caveat in SI A.10 applies to the reasoning condition too.
 GEN_PARAMS_REASONING_OVERRIDES: Dict[str, dict] = {
     "vllm": dict(GEN_PARAMS_REASONING, temperature=0.0),
 }
 
-# Serving details that no API returns and that therefore have to be recorded by
-# hand. Keys are matched as a substring of the full model name; the values are
-# merged into the per-call metadata, so each becomes a column in the output CSV.
-# --served-quantization overrides these at run time for the models being run.
+# Serving details no API reports, recorded by hand. Keys are matched as a
+# SUBSTRING of the model name, in insertion order, and the last match wins -- so a
+# more specific repo id must come after a less specific one. Values are merged into
+# the per-call metadata and become columns in the output CSV.
+# --served-quantization overrides these at run time.
+#
+# Read the dtype off the checkpoint, not off vLLM's default: vLLM honours a
+# checkpoint's own quantization_config, so "no --quantization flag" does not mean
+# bf16. Each model below is recorded at the precision it was released in.
 MODEL_SERVING_NOTES: Dict[str, Dict[str, str]] = {
-    # Checkpoint is uniformly BF16 (HF safetensors index: 560,524,578,816 of
-    # 560,524,603,904 params BF16, remainder F32; no quantization_config).
     "NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16": {"served_quantization": "bf16"},
-    # Uniformly BF16, no quantization_config (426,993,800,960 of 427,040,140,160).
     "MiniMax-M3": {"served_quantization": "bf16"},
-    # NOT bf16, despite the vLLM default. The zai-org/GLM-5.3-Flash checkpoint
-    # ships FP8: config.json carries quantization_config {quant_method: "fp8",
-    # fmt: "e4m3", activation_scheme: "dynamic", weight_block_size: [128,128]},
-    # and 314,396,639,232 of 321,323,031,390 parameters (97.8%) are stored as
-    # F8_E4M3. vLLM honours that config on load, so the served weights are FP8
-    # regardless of --dtype. A separate zai-org/GLM-5.3-Flash-BF16 repo exists
-    # and was NOT the one served (launch args recorded --model=zai-org/GLM-5.3-Flash,
-    # and the preflight matched that id against /models).
+    # FP8 checkpoint, despite the unqualified repo name; a separate -BF16 repo
+    # exists and was not the one served.
     "GLM-5.3-Flash": {"served_quantization": "fp8-e4m3"},
-    # Keys are SUBSTRING matches applied in insertion order, so this must stay
-    # after the entry above: "GLM-5.3-Flash" also matches the BF16 repo id, and
-    # the later update() wins. Only relevant if the BF16 variant is ever served.
     "GLM-5.3-Flash-BF16": {"served_quantization": "bf16"},
-    # Uniformly BF16, no quantization_config: 403,397,920,304 of 403,397,928,944
-    # parameters BF16, remainder F32 (summed from all 94 shard headers, 2 Oct
-    # 2026). Unlike GLM, the plainly-named repo IS the BF16 one here, so serving
-    # the id Dirk sent is sufficient -- but Qwen publishes an official
-    # Qwen/Qwen3.5-397B-A17B-FP8 as well, plus NVFP4 and GPTQ-Int4 variants and
-    # dozens of community quantisations. If one of those is ever served, add the
-    # longer repo id AFTER this entry: keys are substring matches applied in
-    # insertion order and the later update() wins, exactly as for GLM above.
+    # Here the unqualified repo IS bf16, but official -FP8, -NVFP4 and -GPTQ-Int4
+    # variants exist; add the longer id after this entry if one is ever served.
     "Qwen3.5-397B-A17B": {"served_quantization": "bf16"},
+    # Native INT4 (compressed-tensors, 4-bit group-32 on the routed experts). No
+    # higher-precision sibling is published.
+    "Kimi-K2.6": {"served_quantization": "int4-native"},
 }
 
 # Finish reasons meaning the model was still generating when the cap was hit.
@@ -190,74 +187,49 @@ TRUNCATED_FINISH_REASONS = {"length", "MAX_TOKENS", "max_tokens"}
 # the old protocol instead of silently replaying them.
 CACHE_PROTOCOL_VERSION = 5
 
-# Some chat templates hardcode an OPEN <think> tag into the generation prompt, so
-# the model's first generated token is necessarily reasoning and no request
-# parameter can prevent it. GLM-5.3-Flash is one: its template ends with
-#     {%- if add_generation_prompt -%}<|assistant|>{{- '<think>' -}}{%- endif -%}
-# with no branch that omits the tag, and its reasoning_effort accepts only
-# low/high/max (anything else silently means max).
+# Models whose chat template hardcodes an OPEN <think> into the generation prompt,
+# with no branch that omits it, so no request parameter can suppress reasoning.
+# For these the non-reasoning condition is built by prefilling the assistant turn
+# with an already-CLOSED thinking block and continuing from it.
 #
-# For these models the non-reasoning condition is produced by prefilling the
-# assistant turn with an already-CLOSED thinking block and continuing from it --
-# the same construct the template itself emits for history turns -- so the model
-# has no open block to fill and answers directly.
-#
-# Verified per model with probe_thinking.py. Add a model here only after the
-# "assistant prefill <think></think>" row of that probe reports reasoned = NO.
+# Add a model here ONLY if the assistant-prefill request is the one that returns
+# zero characters of thinking. Every other template in this panel closes the block
+# itself, and prefilling those as well would emit the closing tag twice.
 VLLM_THINK_PREFILL_MODELS: Tuple[str, ...] = (
     "GLM-5.3-Flash",
 )
 THINK_PREFILL_CONTENT = "<think></think>"
 
-# Effort value sent in the NON-reasoning condition for the models above. Their
-# reasoning_effort parameter has no "off" level (GLM-5.3 accepts only low/high/
-# max) and silently resolves to max when omitted, which would stamp
-# "Reasoning Effort: Max" into the prompt of the very condition where reasoning
-# is being suppressed. Sending the lowest available level is the least wrong
-# option, and it matches the level the reasoning condition uses panel-wide.
+# Effort sent in the NON-reasoning condition for the prefill models above. Their
+# reasoning_effort has no "off" level and resolves to max when omitted, which would
+# stamp "Reasoning Effort: Max" into the prompt of the condition where reasoning is
+# being suppressed. The lowest available level is the least wrong option.
 VLLM_NONREASONING_EFFORT = "low"
 
-# Effort level used in the REASONING condition where a model's scale does not
-# line up with the panel-wide "low" of REASONING_CONDITIONS. On GLM-5.3-Flash
-# "low" does not reduce the budget, it suppresses reasoning outright (0 chars of
-# thinking on 7/7 SOEP items, 30 Sep 2026), so it cannot serve as the reasoning
-# condition. "max" is GLM's own default and produced roughly 150-200 reasoning
-# tokens per item, comfortably inside the 1024-token thinking budget the rest of
-# the panel received (SI Table S4).
+# Effort used in the REASONING condition where the panel-wide "low" does not mean
+# "a smaller budget". On GLM-5.3-Flash "low" suppresses reasoning outright, so it
+# cannot serve as the reasoning condition; "max" is that model's own default.
 VLLM_REASONING_EFFORT: Dict[str, str] = {
     "GLM-5.3-Flash": "max",
 }
 
 # Which chat-template kwarg controls thinking, per model, as
-# (kwarg_name, value_when_reasoning, value_when_not). The panel-wide default is
-# enable_thinking, which is what GLM-5.3 and most open-weight templates read --
-# but it is a convention, not a standard, and a template that does not recognise
-# the kwarg silently ignores it rather than erroring. The failure is quiet and
-# lands in the non-reasoning condition: the template falls through to its own
-# default (often "model decides"), the model reasons anyway, and under the
-# 16-token cap the result is a truncated thought with no answer.
+# (kwarg_name, value_when_reasoning, value_when_not). enable_thinking is only a
+# convention, not a standard: a template that does not recognise the kwarg IGNORES
+# it rather than erroring, and the failure is silent and lands in the non-reasoning
+# condition -- the template falls through to its own default, the model reasons
+# anyway, and under the 16-token cap the result is a truncated thought with no
+# answer. So read each model's chat_template.jinja before collecting it.
 #
-# Read each model's chat_template.jinja on the HF repo BEFORE its serving
-# session, and confirm with probe_thinking.py in the first minutes of it.
+# None of the models below belongs in VLLM_THINK_PREFILL_MODELS: their templates
+# emit the closed thinking block themselves on the "off" value.
 VLLM_THINKING_KWARG: Dict[str, Tuple[str, object, object]] = {
-    # MiniMax-M3 ignores enable_thinking entirely. Its template reads
-    # `thinking_mode` with three levels, "enabled" / "disabled" / "adaptive":
-    #   {%- if add_generation_prompt -%}
-    #   {{- bos_token ~ 'ai' ~ '\n' }}
-    #   {%- if thinking_mode is defined and thinking_mode == "disabled" -%}
-    #       {{- think_end_token }}
-    # so "disabled" makes the TEMPLATE close the think block in the generation
-    # prompt. That is the same construct we build by hand for GLM, which is why
-    # MiniMax-M3 must NOT go in VLLM_THINK_PREFILL_MODELS -- prefilling as well
-    # would emit the closing tag twice. Leaving thinking_mode undefined falls
-    # through to the adaptive branch, i.e. no off switch at all.
-    # Read from chat_template.jinja, 30 Sep 2026.
+    # thinking_mode: "enabled" / "disabled" / "adaptive"; an undefined value falls
+    # through to adaptive, i.e. no off switch.
     "MiniMax-M3": ("thinking_mode", "enabled", "disabled"),
-    # Qwen3.5-397B-A17B deliberately has NO entry: its chat_template.jinja reads
-    # enable_thinking, i.e. the panel default below, and its false branch emits
-    # '<think>\n\n</think>\n\n' into the generation prompt itself. Rendered
-    # offline against our message shape, 2 Oct 2026. For the same reason it must
-    # stay out of VLLM_THINK_PREFILL_MODELS.
+    # A third spelling: plain boolean `thinking`.
+    "Kimi-K2.6": ("thinking", True, False),
+    # Qwen3.5-397B-A17B has NO entry on purpose: it reads the default below.
 }
 VLLM_THINKING_KWARG_DEFAULT: Tuple[str, object, object] = ("enable_thinking", True, False)
 
@@ -274,17 +246,14 @@ def _template_forces_thinking(model_name: str) -> bool:
     """True for models whose chat template cannot be talked out of reasoning."""
     return any(p in model_name for p in VLLM_THINK_PREFILL_MODELS)
 
-# Open-weight reasoning models emit their chain of thought INLINE in the message
-# content, closed by </think>, unless the server runs a --reasoning-parser (which
-# would move it to reasoning_content). The answer is whatever follows the final
-# closing tag. Extracting from the whole string instead picks up digits from the
-# reasoning -- e.g. the "1" in a model restating "respond with strictly one
-# integer from 1 to 11", which yields a valid-looking but entirely wrong answer.
-# </mm:think> is MiniMax's variant: its tokenizer defines <think> (200050) and
-# </think> (200051) but ALSO <mm:think> (200059) and </mm:think> (200060). The
-# plain </think> pattern does not match </mm:think> as a substring, so omitting it
-# would leave the whole chain of thought to be scanned for digits, which returns a
-# valid-looking answer for every item.
+# Open-weight reasoning models return the chain of thought INLINE in the message
+# content, closed by a think tag, unless the server runs a --reasoning-parser. The
+# answer is whatever follows the FINAL closing tag; matching against the whole
+# string instead picks up digits out of the reasoning and yields a valid-looking
+# but wrong answer for every item.
+#
+# </mm:think> is MiniMax's tag and is NOT a substring match for </think>, so it has
+# to be listed separately.
 _THINK_CLOSE_RE = re.compile(
     r"</think>|</thinking>|</mm:think>|<\|end_of_thought\|>", re.IGNORECASE
 )
@@ -361,10 +330,11 @@ def preflight_vllm(base_url: str, api_key: Optional[str], timeout_s: int,
             f"{hint}\nResponse body: {body}"
         ) from exc
     except json.JSONDecodeError as exc:
-        # The MPCDF host is a single-page web app. When a deployment expires, its
-        # path stops routing to vLLM and falls through to the app's catch-all,
-        # which answers HTTP 200 with an HTML shell -- so a status-code-only
-        # health check reports success on a dead endpoint. Confirmed 30 Sep 2026.
+        # Self-hosted deployments often sit behind a web front-end. When a
+        # deployment expires, its path stops routing to vLLM and falls through to
+        # that app's catch-all route, which answers HTTP 200 with an HTML shell --
+        # so a status-code-only health check reports success on a dead endpoint.
+        # Hence this check parses the body. Observed 30 Sep 2026.
         raise RuntimeError(
             f"{url} answered with HTML, not JSON, so this path is not a live vLLM "
             "server. The usual cause is an expired deployment: the serving session "
@@ -825,13 +795,12 @@ class VLLMClient(OpenAICompatibleClient):
         kwarg, on_value, off_value = _thinking_kwarg(model_name)
         params: dict = {"chat_template_kwargs": {kwarg: on_value if enabled else off_value}}
 
-        # Reasoning condition: the same effort level the proprietary panel used
-        # (SI Table S4 — reasoning_effort=low for OpenAI, a 1024-token budget
-        # elsewhere). Non-reasoning condition: normally nothing, but for models
-        # whose effort parameter has no "off" level we send the lowest one
-        # rather than let it default to max (see VLLM_NONREASONING_EFFORT).
-        # NOTE: GLM-5.3 accepts only low/high/max and treats anything else as
-        # max, so REASONING_CONDITIONS must keep using one of those labels.
+        # Reasoning condition: the effort level the proprietary panel used (SI
+        # Table S4). Non-reasoning: normally nothing, but where the effort
+        # parameter has no "off" level we send the lowest rather than let it
+        # default to max (VLLM_NONREASONING_EFFORT). GLM-5.3 accepts only
+        # low/high/max and treats anything else as max, so REASONING_CONDITIONS
+        # must keep using one of those labels.
         effort = reasoning_effort
         if enabled:
             for pattern, level in VLLM_REASONING_EFFORT.items():
@@ -1151,18 +1120,15 @@ class APIModelManager:
         self._load_cache()
 
     # ── response cache (resumability) ──────────────────────────────────────
-    # A vLLM serving session can disappear between the queue wait and the end
-    # of a run, and the reasoning condition is slow enough that losing an
-    # in-flight task is likely. Answers are keyed by (model key, condition,
-    # messages) and appended to a JSONL sidecar, so re-running an interrupted
-    # model replays what was already collected and only calls the API for the
-    # items still missing.
+    # Answers are keyed by (model key, condition, messages) and appended to a
+    # JSONL sidecar, so re-running an interrupted model replays what was already
+    # collected and only calls the API for the items still missing. A serving
+    # session can disappear mid-run, and the reasoning condition is slow.
     #
-    # The cache is also the provenance record, not merely a convenience: in the
-    # reasoning condition an identical request does NOT reproduce, even greedily
-    # (see GEN_PARAMS_REASONING_OVERRIDES), so a replayed answer is the answer
-    # that was actually collected rather than one the model would necessarily
-    # give again. Keep the JSONL alongside the CSVs when archiving.
+    # It is also the provenance record, not just a convenience: an identical
+    # reasoning request does not reproduce even greedily (see
+    # GEN_PARAMS_REASONING_OVERRIDES), so a replayed answer is the one actually
+    # collected. Keep the JSONL alongside the CSVs when archiving.
 
     def _load_cache(self):
         if not self.cache_path or not os.path.exists(self.cache_path):

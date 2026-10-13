@@ -63,8 +63,10 @@ env/
 # documentation and AI help files
 # ----------------------------------------------------------------------------
 Claude.md
+CLAUDE.md
 vllm_models.txt
 probe_thinking.py
+repeat_determinism.py
 VLLM_RUN_NOTES.md
 endpoints.env.example
 run_parallel_large.sh
