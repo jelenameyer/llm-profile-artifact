@@ -2,8 +2,8 @@
 (BARRATT/BIS, SSSV, LOT, DFD) across all prompting conditions. Writes
 results/tables/forward_reverse_corr_table_risk_supp.tex.
 
-Needs the original Frey et al. (2017) lottery data (lotteries.csv), which is not
-redistributed here; the script skips with instructions if it is absent."""
+Needs two original Frey et al. (2017) files (lotteries.csv, dfd_perprob.csv), which
+are not redistributed here; the script skips with instructions if either is absent."""
 import sys
 from pathlib import Path
 
@@ -11,12 +11,14 @@ import numpy as np
 import pandas as pd
 from utils import corrs_table_from_conditions, to_latex_table, format_ci_cell
 
-# The LOT human rows are rebuilt from the original per-trial Frey lottery data, which is
+# The LOT and DFD human rows are rebuilt from the original Frey per-trial data, which is
 # not re-hosted here but fetched from the public Frey OSF project by download_data.py.
 LOT_SRC = Path("../../../source/risk_data/orig_human_data/lotteries.csv")
-if not LOT_SRC.exists():
+DFD_SRC = Path("../../../source/risk_data/orig_human_data/dfd_perprob.csv")
+_missing = [p.name for p in (LOT_SRC, DFD_SRC) if not p.exists()]
+if _missing:
     print(
-        f"[skip] missing {LOT_SRC.name} (original Frey et al. 2017 data, normally fetched by\n"
+        f"[skip] missing {', '.join(_missing)} (original Frey et al. 2017 data, normally fetched by\n"
         "       download_data.py). Run `python download_data.py` (or python run_all.py),\n"
         "       then re-run. Skipping for now.",
         file=sys.stderr,
@@ -33,9 +35,10 @@ raw_risk_data_humans = pd.read_csv("../../../data/risk_data/human_data_proc/raw_
 # IPIP-NEO table in 05_forward_reverse_corr_table_supp.py.
 api_data = pd.read_csv("../../../data/risk_data/api_data/LLM_api_no_flip_data_raw.csv", low_memory=False)
 api_nr = api_data[api_data["model"].str.contains("_nr", regex=False)]
-# raw LOT trials: used to rebuild the LOT human rows with per-trial keying (see the
-# LOT override block below).
+# raw LOT trials and DFD choices: used to rebuild the LOT and DFD human rows with
+# position-coded responses (see the override blocks below).
 raw_lotteries_humans = pd.read_csv(LOT_SRC, low_memory=False)
+raw_dfd_humans = pd.read_csv(DFD_SRC, low_memory=False)
 
 # for humans convert to numerical response column
 # Note: do NOT map 0 -> None — for binary risk tasks (LOT, DFD, MPL, BART, CCT)
@@ -102,8 +105,27 @@ lot_humans_rebuilt = pd.DataFrame({
     "item_id": lot_src["Dec_ID"].astype(int).astype(str).to_numpy(),
     "reverse_coded": np.where(lot_risky_is_X, lot_pxz == 0, lot_pxz == 1),
 })
+# Override DFD-human rows the same way. The stored DFD `score` is R (chose risky),
+# whereas the LLM answer is the chosen POSITION; on reverse-keyed items (risky option
+# listed second) the two are opposite, which would flip the sign of the human
+# forward-reverse r. DFD order is fixed per gamble, so the LLM keying applies as is;
+# rebuild score = chose option A (position 1), as in the DFD panel of
+# 04_profile_instability/01_profiles_per_keying.py.
+dfd_src = raw_dfd_humans.dropna(subset=["decision", "gamble_lab", "partid"]).copy()
+dfd_humans_rebuilt = pd.DataFrame({
+    "experiment": "DFD",
+    "partid": dfd_src["partid"].to_numpy(),
+    "item": dfd_src["gamble_lab"].to_numpy(),
+    "score": (dfd_src["decision"].astype(str).str.upper() == "A").astype(float).to_numpy(),
+    "category": np.nan,
+    "item_id": dfd_src["gamble_lab"].map(_normalize_item_id).to_numpy(),
+})
+dfd_humans_rebuilt["reverse_coded"] = [
+    reverse_map.get(("DFD", i)) for i in dfd_humans_rebuilt["item_id"]
+]
 raw_risk_data_humans = pd.concat(
-    [raw_risk_data_humans[raw_risk_data_humans["experiment"] != "LOT"], lot_humans_rebuilt],
+    [raw_risk_data_humans[~raw_risk_data_humans["experiment"].isin(["LOT", "DFD"])],
+     lot_humans_rebuilt, dfd_humans_rebuilt],
     ignore_index=True,
 )
 
@@ -202,18 +224,8 @@ conditions = [
 table_df = corrs_table_from_conditions(
     conditions=conditions,
     condition_col="prompting condition",
-    compare_to="Human",
-    add_diff_rows=False,
     category="risk_trait",
     trait_order=trait_order
-)
-
-# simplify diff row labels to avoid repeating condition names
-table_df["prompting condition"] = table_df["prompting condition"].str.replace(
-    r"^\$\\Delta z'\$\s*\(.*\)$", lambda _: r"$\Delta z'$", regex=True
-)
-table_df["prompting condition"] = table_df["prompting condition"].str.replace(
-    r"^z-statistic\s*\(.*\)$", "z-statistic", regex=True
 )
 
 # format all CI cells into two-line mini tables
@@ -225,25 +237,16 @@ for idx in table_df.index:
 latex = to_latex_table(
     table_df,
     float_format="%.2f",
-    caption="Forward-reverse correlations of risk tasks by condition",
+    caption=("Forward--reverse item-mean correlation $\\rho(\\bar R_f, \\bar R_r)$ on the risk battery by "
+             "(sub-)scale and prompting condition, restricted to (sub-)scales with at least one "
+             "reverse-keyed item. Cells: point estimate above, Fisher-$z$ 95\\% CI below. "
+             "Human baseline: Frey et al. (2017) sample, $n = 1{,}507$."),
     label="tab:forward_reverse_risk",
     escape=False,
 )
 
-# insert a \midrule after each z-statistic row
-lines = latex.splitlines()
-try:
-    start = lines.index(r"\midrule") + 1
-    end = lines.index(r"\bottomrule")
-    body = lines[start:end]
-    new_body = []
-    for line in body:
-        new_body.append(line)
-        if line.lstrip().startswith("z-statistic") and line.strip().endswith(r"\\"):
-            new_body.append(r"\midrule")
-    latex = "\n".join(lines[:start] + new_body + lines[end:])
-except ValueError:
-    pass
+# ten CI columns: shrink the font and column padding so the table fits the text width
+latex = latex.replace("\\begin{tabular}", "\\scriptsize\n\\setlength{\\tabcolsep}{2pt}\n\\begin{tabular}", 1)
 
 output_path = "../../../results/tables/forward_reverse_corr_table_risk_supp.tex"
 with open(output_path, "w", encoding="utf-8") as f:

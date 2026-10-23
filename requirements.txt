@@ -16,6 +16,7 @@ seaborn==0.13.2
 adjustText==1.3.0     # non-overlapping point labels in scatter figures
 pingouin==0.5.5       # Cronbach's alpha / reliability stats
 statsmodels==0.14.5
+xlrd==2.0.2           # reads IPIP-NEO-ItemKey.xls in preprocessing 01/06
 
 # Notebook execution (the preprocessing scripts 04/05/07 are .ipynb)
 nbconvert==7.16.6

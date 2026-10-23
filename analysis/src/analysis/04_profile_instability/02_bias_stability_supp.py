@@ -306,6 +306,28 @@ def main() -> None:
 
     summary_df.to_csv(OUT_TABLE_DIR / "bias_stability_summary.csv", index=False)
 
+    # LaTeX (bare tabular; the SI supplies the table environment and caption)
+    sm = summary_df.set_index(["scope", "kind"])
+    tex_rows = [("LLMs, all (sub-)scales", "LLM_all"), ("LLMs, Big Five only", "LLM_big5"),
+                ("LLMs, risk only", "LLM_risk"),
+                (r"LLMs, all, drop const.\ $\ge 3$", "LLM_novar3"), None,
+                ("Humans, Big Five", "Human_big5"), ("Humans, risk", "Human_risk")]
+    lines = [r"\begin{tabular}{lrr ccc ccc}", r"\toprule",
+             r" & & & \multicolumn{3}{c}{signed $\hat b$} & \multicolumn{3}{c}{$|\hat b|$} \\",
+             r"\cmidrule(lr){4-6}\cmidrule(lr){7-9}",
+             r"sample & $n$ & $k$ & $\bar r$ & $\alpha$ & ICC & $\bar r$ & $\alpha$ & ICC \\", r"\midrule"]
+    for row in tex_rows:
+        if row is None:
+            lines.append(r"\midrule"); continue
+        label, scope = row
+        s, a = sm.loc[(scope, "signed")], sm.loc[(scope, "abs")]
+        lines.append(f"{label} & {int(s['n']):,} & {int(s['n_subscales'])} & "
+                     f"{s['mean_r_pearson']:.2f} & {s['cronbach_alpha']:.2f} & {s['icc_2_1']:.2f} & "
+                     f"{a['mean_r_pearson']:.2f} & {a['cronbach_alpha']:.2f} & {a['icc_2_1']:.2f} \\\\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    with open(OUT_TABLE_DIR / "bias_stability.tex", "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
     # ============================================================
     # Figures — one per NOVAR_THRESHOLDS entry, each a 2×2 of LLM panels
     # (14×14, block separator at the personality↔risk divide):

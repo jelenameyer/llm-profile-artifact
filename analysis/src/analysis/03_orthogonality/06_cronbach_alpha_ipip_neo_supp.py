@@ -1,6 +1,6 @@
 """SI Tables tab:ipip_neo_trait_reversed / tab:ipip_neo_trait_raw: trait-level
-IPIP-NEO-300 Cronbach alpha + mean inter-item correlation, LLMs (56, incl. 10
-proprietary API) vs humans, no-context textgen. Mirrors the risk table
+IPIP-NEO-300 Cronbach alpha + mean inter-item correlation, LLMs (60, incl. 10
+proprietary + 4 large open-weight via API) vs humans, no-context textgen. Mirrors the risk table
 (05_cronbach_alpha_risk_supp.py).
 
 Reads ipipneo300_data (llm/api/human, raw + rereversed).
@@ -165,10 +165,10 @@ def build_overview_table(llm_data, human_data, experiment_name):
     return out
 
 
-# ── pooled LLM panel (OSS + 10 proprietary API) ──────────────────────────────
+# ── pooled LLM panel (OSS + 14 API: 10 proprietary, 4 large open-weight) ─────
 
 def load_pooled_llm(oss_path, api_path):
-    """OSS no-context + 10 non-reasoning proprietary API models (no-context)."""
+    """OSS no-context + 14 non-reasoning API models (no-context)."""
     oss = pd.read_csv(oss_path, low_memory=False)
     oss = oss[oss["context_mode"] == "no_context"]
     api = pd.read_csv(api_path, low_memory=False)

@@ -1,4 +1,4 @@
-"""Fig 3c: distribution of mean inter-item correlation across instruments in the
+"""Fig 4C: distribution of mean inter-item correlation across instruments in the
 0-10% vs 40-50% reverse-keyed bins, per prompting condition (ridgeline + means).
 
 Reads risk_data + ipipneo300_data (LLM/api/human, all conditions).

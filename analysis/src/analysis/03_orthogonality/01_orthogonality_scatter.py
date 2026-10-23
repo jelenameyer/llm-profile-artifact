@@ -1,4 +1,4 @@
-"""Fig 3a: mean inter-item correlation vs proportion of reverse-keyed items, one
+"""Fig 4A: mean inter-item correlation vs proportion of reverse-keyed items, one
 point per instrument, LLMs vs humans (risk battery + IPIP-NEO-300 traits).
 
 Reads risk_data + ipipneo300_data (LLM/api/human).

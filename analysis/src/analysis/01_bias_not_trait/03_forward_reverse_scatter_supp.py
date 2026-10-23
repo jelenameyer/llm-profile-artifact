@@ -1,9 +1,9 @@
 """SI Fig S1: forward-reverse item-mean scatter for the four non-Neuroticism traits
-(O, C, E, A), humans vs LLMs on the IPIP-NEO-300. Companion to main-text Fig 1.
+(O, C, E, A), humans vs LLMs on the IPIP-NEO-300. Companion to main-text Fig 2.
 Writes results/figures/forward_reverse_scatter_supp.pdf."""
 import pandas as pd
 import matplotlib.pyplot as plt
-from utils import plot_corr_panel
+from utils import plot_corr_panel, is_proprietary
 
 # ══════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
@@ -89,7 +89,7 @@ for i, trait in enumerate(TRAITS):
         .pivot(index="model", columns="reverse_coded", values="response")
         .reset_index()
     )
-    api_pts = llm_divided[llm_divided["model"].str.contains("__", regex=False)]
+    api_pts = llm_divided[llm_divided["model"].map(is_proprietary)]
     axes[i, 1].scatter(api_pts[False], api_pts[True],
                        color=C_LLM_API, alpha=0.7, s=40, zorder=5)
 

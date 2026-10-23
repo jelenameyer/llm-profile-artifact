@@ -264,3 +264,60 @@ def format_cronbach_latex(df, fmt_k=False):
     return out[["experiment", "domain", "k", "pct rev. items",
                 "avg. inter-item-corr LLM", "$\\alpha$ LLM",
                 "avg. inter-item-corr humans", "$\\alpha$ humans"]]
+
+
+# ── instrument-clustered intervals for a cross-instrument correlation ────────
+
+# Subscales of one parent instrument are not independent, so the intervals and
+# tests below resample or re-sign whole instruments (alternatives to Fisher-z):
+N_BOOT_CLUSTER = 10_000
+BOOT_SEED = 13
+
+
+def cluster_bootstrap_ci(x, y, groups, n_boot=N_BOOT_CLUSTER, alpha=0.05, seed=BOOT_SEED):
+    """Percentile CI for Pearson r from resampling whole parent instruments with
+    replacement. Draws with no variance in x or y (e.g. only p_r = 0 instruments)
+    have no r and are dropped; their count is returned so instability is visible."""
+    rng = np.random.default_rng(seed)
+    members = [np.flatnonzero(groups == g) for g in np.unique(groups)]
+    rs, n_degenerate = [], 0
+    for _ in range(n_boot):
+        pick = rng.integers(len(members), size=len(members))
+        idx = np.concatenate([members[i] for i in pick])
+        xb, yb = x[idx], y[idx]
+        if np.std(xb) == 0 or np.std(yb) == 0:
+            n_degenerate += 1
+            continue
+        rs.append(np.corrcoef(xb, yb)[0, 1])
+    lo, hi = np.percentile(rs, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+    return (lo, hi), n_degenerate
+
+
+def _cluster_robust_t(x, y, groups):
+    """OLS slope of y on x divided by its CR1 cluster-robust standard error."""
+    X = np.column_stack([np.ones_like(x), x])
+    XtX_inv = np.linalg.inv(X.T @ X)
+    beta = XtX_inv @ X.T @ y
+    resid = y - X @ beta
+    meat = np.zeros((2, 2))
+    for g in np.unique(groups):
+        s = X[groups == g].T @ resid[groups == g]
+        meat += np.outer(s, s)
+    n, n_g = len(y), len(np.unique(groups))
+    c = n_g / (n_g - 1) * (n - 1) / (n - 2)
+    V = c * XtX_inv @ meat @ XtX_inv
+    return beta[1] / np.sqrt(V[1, 1])
+
+
+def wild_cluster_p(x, y, groups):
+    """Wild cluster bootstrap-t p-value for H0: no linear relation (Cameron, Gelbach &
+    Miller 2008), null imposed, Rademacher weights per instrument. All 2^G sign
+    patterns are enumerated (G = number of instruments), so the p-value is exact for
+    this procedure and needs no seed."""
+    t_obs = _cluster_robust_t(x, y, groups)
+    labels = np.unique(groups)
+    g_idx = np.searchsorted(labels, groups)
+    e0 = y - y.mean()                             # residuals under H0
+    signs = 1 - 2 * ((np.arange(2 ** len(labels))[:, None] >> np.arange(len(labels))) & 1)
+    t_star = np.array([_cluster_robust_t(x, y.mean() + w[g_idx] * e0, groups) for w in signs])
+    return float(np.mean(np.abs(t_star) >= np.abs(t_obs) - 1e-12))

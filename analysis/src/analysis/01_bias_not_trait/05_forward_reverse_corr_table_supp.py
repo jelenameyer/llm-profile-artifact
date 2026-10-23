@@ -104,7 +104,11 @@ for idx in table_df.index:
 latex = to_latex_table(
     table_df,
     float_format="%.2f",
-    caption="Forward-reverse correlations by trait and condition",
+    caption=("Forward--reverse item-mean correlation $\\rho(\\bar R_f, \\bar R_r)$ on the IPIP-NEO-300 "
+             "by trait and prompting condition. Cells: point estimate above, Fisher-$z$ 95\\% CI below. "
+             "$n$ varies across rows because with-context runs lost two models to memory limits and "
+             "the proprietary and large open-weight models ran only the no-context, textgen condition. "
+             "Human baseline: Johnson (2014) sample, $n = 20{,}993$."),
     label="tab:forward_reverse_traits",
     escape=False,
 )

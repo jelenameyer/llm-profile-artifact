@@ -1,5 +1,6 @@
-"""Fig 3b: cross-instrument p_r vs mean-inter-item correlation (Pearson r, 95% CI)
-shown per prompting condition, with small/large size-split markers (forest plot).
+"""Fig 4B: cross-instrument p_r vs mean-inter-item correlation (Pearson r, 95% CI
+clustered by parent instrument, see CI_COLUMN) shown per prompting condition, with
+small/large size-split markers (forest plot).
 
 Reads results/tables/orthogonality_corr_by_condition.csv (from script 02).
 Writes results/figures/orthogonality_across_conditions.pdf.
@@ -7,7 +8,6 @@ Writes results/figures/orthogonality_across_conditions.pdf.
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import re
 
 # ══════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
@@ -45,8 +45,13 @@ FS_XLABEL  = 13
 ROW_HEIGHT = 0.565
 FIG_EXTRA  = 0.5
 
-# axes
-XLIM = (-1.08, 0.05)
+# Which CI the error bars show (columns <CI_COLUMN>_lo/_hi): "pearson_ci_cluster" =
+# parent-instrument cluster bootstrap (subscales of one instrument are not
+# independent); "pearson_ci" = Fisher-z, treating the subscales as independent.
+CI_COLUMN = "pearson_ci_cluster"
+
+# axes (upper limit > 0 so that intervals crossing zero stay visible)
+XLIM = (-1.08, 0.15)
 XLABEL = "Pearson r" # (95% CI)"
 
 # error bar style
@@ -62,14 +67,6 @@ SEP_LS     = ":"
 # ══════════════════════════════════════════════════════════════════════════
 # HELPER FUNCTIONS
 # ══════════════════════════════════════════════════════════════════════════
-
-def parse_ci(val):
-    """Parse CI from tuple, list, array, or string representation."""
-    if isinstance(val, (tuple, list, np.ndarray)):
-        return float(val[0]), float(val[1])
-    nums = re.findall(r'-?\d+\.\d+', str(val))
-    return float(nums[0]), float(nums[1])
-
 
 def make_label(row):
     """Build a two-line condition label. Asterisk marks conditions
@@ -97,7 +94,7 @@ df = pd.read_csv(DATA_PATH)
 plot_rows = []
 for _, row in df.iterrows():
     label = make_label(row)
-    lo, hi = parse_ci(row["pearson_ci"])
+    lo, hi = row[f"{CI_COLUMN}_lo"], row[f"{CI_COLUMN}_hi"]
     plot_rows.append({
         "label": label,
         "r": row["pearson_r"],

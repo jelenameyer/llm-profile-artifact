@@ -1,8 +1,9 @@
 """Main-text Table 1: forward-reverse item-mean correlations per Big Five trait,
-LLMs vs humans (IPIP-NEO-300). Writes results/tables/forward_reverse_corr_table.tex."""
+LLMs vs humans (IPIP-NEO-300), plus pi_b = (1+rho)/2 with Fisher-z CIs.
+Writes results/tables/forward_reverse_corr_table.tex and pi_b_ci.{csv,tex}."""
 import pandas as pd
 import re
-from utils import corrs_table_from_conditions, format_ci_cell
+from utils import corrs_table_from_conditions, format_ci_cell, format_r_ci, get_corrs_and_ci
 
 # load all dfs necessary
 raw_ipipneo_data = pd.read_csv("../../../data/ipipneo300_data/llm_data/ipipneo_no_flip_data_raw.csv", low_memory=False)
@@ -93,7 +94,40 @@ latex = latex.replace(
     "\\label{tab:forward_reverse_traits_small}\n\\scriptsize\n\\setlength{\\tabcolsep}{2pt}\n",
 )
 latex = re.sub(r"(LLMs\\s*&.*?\\\\)\n\\s*\n(Human\\s*&)", r"\\1\n\\2", latex, count=1)
+# a bare ">" in LaTeX text mode prints as an inverted question mark
+latex = latex.replace("var>0", "var$>$0")
 
 output_path = "../../../results/tables/forward_reverse_corr_table.tex"
 with open(output_path, "w", encoding="utf-8") as f:
     f.write(latex)
+
+# ---- pi_b = (1 + rho) / 2 with CIs (Eq. 4) --------------------------------------
+# The transform is monotone, so the Fisher-z bounds of rho map straight onto pi_b.
+pi_rows = []
+for cond in conditions:
+    for trait in ["O", "C", "E", "A", "N"]:
+        subset = cond["df"][cond["df"]["traits"] == trait]
+        r, lo, hi, n = get_corrs_and_ci(subset, cond["entity_var"], cond["dependent_var"])
+        pi_rows.append({
+            "population": cond["name"], "trait": trait, "n": n, "rho": r,
+            "pi_b": (1 + r) / 2, "pi_b_lo": (1 + lo) / 2, "pi_b_hi": (1 + hi) / 2,
+        })
+pi_df = pd.DataFrame(pi_rows)
+pi_df.to_csv("../../../results/tables/pi_b_ci.csv", index=False)
+
+pi_wide = pi_df.assign(cell=pi_df.apply(
+    lambda r: format_ci_cell(format_r_ci(r["pi_b"], r["pi_b_lo"], r["pi_b_hi"])), axis=1)
+).pivot(index="population", columns="trait", values="cell")
+pi_wide = pi_wide.reindex(index=desired_order, columns=["O", "C", "E", "A", "N"]).reset_index()
+pi_latex = pi_wide.to_latex(
+    index=False, escape=False, column_format="lccccc",
+    caption=r"Share of between-respondent variance attributable to bias, "
+            r"$\pi_b = (1+\rho)/2$, with 95\% CIs (Fisher-$z$ bounds of $\rho$)",
+    label="tab:pi_b_ci",
+).replace("var>0", "var$>$0")
+with open("../../../results/tables/pi_b_ci.tex", "w", encoding="utf-8") as f:
+    f.write(pi_latex)
+llm_pi = pi_df[pi_df["population"] == "LLMs"]
+print(f"pi_b (LLMs, N={int(llm_pi['n'].iloc[0])}): point estimates "
+      f"{llm_pi['pi_b'].min():.3f}-{llm_pi['pi_b'].max():.3f}, "
+      f"CI bounds {llm_pi['pi_b_lo'].min():.3f}-{llm_pi['pi_b_hi'].max():.3f}")

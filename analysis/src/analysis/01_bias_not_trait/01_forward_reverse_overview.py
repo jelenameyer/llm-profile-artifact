@@ -1,11 +1,11 @@
-"""Main-text Fig 1: forward-reverse item-mean scatter for Neuroticism (the median
+"""Main-text Fig 2: forward-reverse item-mean scatter for Neuroticism (the median
 trait) with the schematic trait/bias reference panel, humans vs LLMs on the
 IPIP-NEO-300. Writes results/figures/forward_reverse_overview.pdf."""
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from utils import plot_corr_panel, clean_model_label
+from utils import plot_corr_panel, clean_model_label, is_proprietary
 # ══════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
 # ══════════════════════════════════════════════════════════════════════════
@@ -154,6 +154,7 @@ target_models = {
     "openai__gpt-5.4__nr",
     "anthropic__claude-opus-4-6__nr",
     "x-ai__grok-4.20-0309-non-reasoning__nr",
+    "vllm__moonshotai__Kimi-K2.6__nr",
 } 
 
 label_offsets = {
@@ -164,6 +165,7 @@ label_offsets = {
     "openai__gpt-5.4__nr": (0.3, 0.5),
     "anthropic__claude-opus-4-6__nr": (0.0, -0.5),
     "x-ai__grok-4.20-0309-non-reasoning__nr": (0.00001, -0.9),
+    "vllm__moonshotai__Kimi-K2.6__nr": (0.1, -1.15),
 }
 
 
@@ -193,7 +195,7 @@ for _, row in llm_divided.iterrows():
     )
 
 # add api models in different colour (to show difference)
-api_mask = llm_divided["model"].str.contains("__", regex=False)
+api_mask = llm_divided["model"].map(is_proprietary)
 api_pts  = llm_divided[api_mask]
 axes[2].scatter(
     api_pts[False], api_pts[True],

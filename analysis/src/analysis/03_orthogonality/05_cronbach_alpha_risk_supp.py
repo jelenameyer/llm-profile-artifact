@@ -1,5 +1,6 @@
 """SI Table tab:alpha_table_risk: Cronbach alpha + mean inter-item correlation per
-risk instrument, LLMs (56, incl. 10 proprietary API) vs humans, no-context textgen.
+risk instrument, LLMs (60, incl. 10 proprietary + 4 large open-weight via API) vs
+humans, no-context textgen.
 
 Reads risk_data (LLM/api no-flip rereversed, human items_per_person).
 Writes results/tables/cronbach_alpha_risk.tex.
@@ -82,7 +83,8 @@ def main():
         "../../../data/risk_data/LLM_data_proc_prompts_direct/LLM_no_flip_data_rereversed.csv",
         low_memory=False)
     llm = llm[llm["context_mode"] == "no_context"]
-    # Add the 10 proprietary API models (no-reasoning / no_context / no-flip slice).
+    # Add the API models: 10 proprietary + 4 large open-weight (no-reasoning /
+    # no_context / no-flip slice).
     api = pd.read_csv(
         "../../../data/risk_data/api_data/LLM_api_no_flip_data_rereversed.csv",
         low_memory=False)
@@ -90,7 +92,7 @@ def main():
               & (api["context_mode"] == "no_context") & (api["flipped"] == False)]
     llm = pd.concat([llm, api], ignore_index=True)
     print(f"LLM risk roster: {llm['model'].nunique()} models "
-          f"({api['model'].nunique()} proprietary API added)")
+          f"({api['model'].nunique()} API models added)")
 
     human = pd.read_csv(
         "../../../data/risk_data/human_data_proc/items_per_person.csv",

@@ -125,3 +125,19 @@ print(f"\nMax |beta_pred - beta_emp| across cells: {(table['beta_pred'] - table[
 out = "../../../results/tables/bias_slope_validation_barratt.csv"
 table.to_csv(out, index=False)
 print(f"Wrote {out}")
+
+# LaTeX (bare tabular; the SI supplies the table environment and caption)
+def _ci_cell(v, lo, hi):
+    return (r"\begin{tabular}{c}" + f"${v:+.2f}$" + r"\\{\scriptsize$[" + f"{lo:+.2f},{hi:+.2f}" + r"]$}\end{tabular}")
+
+lines = [r"\begin{tabular}{lllcccc}", r"\toprule",
+         r"sub-scale & $p_r$ & sample & $\rho(\bar R_f, \bar R_r)$ & $\pi_b$ & "
+         r"$\beta_{T|R}^{\mathrm{pred}}$ & $\beta_{T|R}^{\mathrm{emp}}$ \\", r"\midrule"]
+for _, r in table.iterrows():
+    sample = f"human ($n{{=}}{r['n']:,}$)" if r["sample"] == "human" else f"LLM ($n{{=}}{r['n']}$)"
+    lines.append(f"{r['sub_scale']} & ${r['p_r']:.2f}$ & {sample} & ${r['rho']:+.2f}$ & ${r['pi_b']:.2f}$ & "
+                 f"{_ci_cell(r['beta_pred'], r['betap_lo'], r['betap_hi'])} & "
+                 f"{_ci_cell(r['beta_emp'], r['betae_lo'], r['betae_hi'])} \\\\")
+lines += [r"\bottomrule", r"\end{tabular}"]
+with open("../../../results/tables/bias_slope_validation.tex", "w", encoding="utf-8") as f:
+    f.write("\n".join(lines) + "\n")

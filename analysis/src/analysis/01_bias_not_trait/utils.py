@@ -315,7 +315,17 @@ def to_latex_table(
     )
 
 
+def is_proprietary(name: str) -> bool:
+    """Proprietary-API model keys look like ``provider__model__cond``. The large
+    open-weight models share the API tables but are prefixed ``vllm__``."""
+    return "__" in name and not name.startswith("vllm__")
+
+
 def clean_model_label(name: str) -> str:
+    if name.startswith("vllm__"):   # vllm__org__model__cond -> model
+        name = name.split("__")[2]
+    # NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16 -> Nemotron-3-Ultra
+    name = re.sub(r"^NVIDIA-(.*)-\d+B-A\d+B-BF16$", r"\1", name)
     cleaned = name
     for token in ["-Instruct-2509", "-Instruct", "-it", "-IT", "-instruct", "-0309-non-reasoning", "-2026-02-23", "-2026-02-15", "anthropic__", "openai__", "x-ai__", "google__", "qwen__", "-preview", "__nr", "__r", "-0309-reasoning"]:
         cleaned = cleaned.replace(token, "")

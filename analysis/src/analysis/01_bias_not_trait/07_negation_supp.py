@@ -1,4 +1,4 @@
-"""Negation check for the forward-reverse asymmetry (SI Table S16).
+"""Negation check for the forward-reverse asymmetry (SI table tab:negation_subset).
 
 Writes to analysis/data/negation_analysis/:
   ipipneo300_negation_labels.csv
@@ -136,3 +136,30 @@ for name, (entity_var, dep_var, df_full, df_sub) in samples.items():
 subset_tab = pd.DataFrame(rows)
 print(subset_tab.to_string(index=False))
 subset_tab.to_csv(OUT / "forward_reverse_negation_free_subset_results.csv", index=False)
+
+# LaTeX (bare tabulars; the SI supplies the table environments and captions)
+TABLES = REPO / "analysis/results/tables"
+lines = [r"\begin{tabular}{lrrrr}", r"\toprule",
+         r"Instrument & $n$ items & $n$ reverse & $n$ with neg. & $r$(rev, neg) \\", r"\midrule"]
+for _, r in summary.iterrows():
+    lines.append(f"{r['Instrument']} & {r['n_items']} & {r['n_rev']} & {r['n_neg_strict']} & ${r['r_strict']:+.2f}$ \\\\")
+lines += [r"\bottomrule", r"\end{tabular}"]
+(TABLES / "negation_base_rates.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+def _cell(r_str, ci_str):
+    lo, hi = ci_str.strip("[]").split(",")
+    lo, hi = lo.strip().replace("0.", "."), hi.strip().replace("0.", ".")
+    return r"\begin{tabular}{c}$" + r_str + r"$ \\ {[$" + lo + ", " + hi + r"$]}\end{tabular}"
+
+lines = [r"\begin{tabular}{llccccccc}", r"\toprule",
+         r"sample & subset & $n$ & O & C & E & A & N \\", r"\midrule"]
+for name in subset_tab["sample"].unique():
+    d = subset_tab[subset_tab["sample"] == name].set_index("trait")
+    label = name.replace(">", "$>$")
+    for subset, rc, cc, nc in [("full", "r_full", "ci_full", "n_full"),
+                               ("neg-free", "r_negfree", "ci_negfree", "n_negfree")]:
+        n = int(d[nc].iloc[0]); n_str = f"{n:,}".replace(",", "{,}")
+        cells = " & ".join(_cell(d.loc[t, rc], d.loc[t, cc]) for t in ["O", "C", "E", "A", "N"])
+        lines.append(f"{label} & {subset} & {n_str} & {cells} \\\\")
+lines += [r"\bottomrule", r"\end{tabular}"]
+(TABLES / "negation_subset.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")

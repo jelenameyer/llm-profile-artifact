@@ -1,11 +1,14 @@
-"""Fig 4: per-respondent profile small-multiples (mean human + 56 LLMs). For each
+"""Fig 5: per-respondent profile small-multiples (mean human + 60 LLMs). For each
 respondent, plot the normalised subscale score T across the 14 subscales at three
 keying conditions (p_r = 0 / 0.5 / 1); the band between p_r=0 and p_r=1 is the
 score range driven by keying alone. Panels ordered by mean |bias|.
 
 Per (respondent, subscale, target p_r): pick the (k_f, k_r) split closest to the
 target with k_f+k_r >= MIN_K_PROFILE, bootstrap T over item subsets, normalise to
-[0,1]. Two gotchas: behavioral tasks (LOT, DFD) use POSITION-coded human responses
+[0,1]. The annotated |mu_b| is item-noise corrected with the Fig 3 error model:
+per model the mean |corrected b| over the 14 subscales; for the human panel, per
+subscale the median individual's |corrected b|, averaged over subscales (the drawn
+human profile is the mean person's). Two gotchas: behavioral tasks (LOT, DFD) use POSITION-coded human responses
 (which option was chosen) so the human keying-shift is comparable to the LLMs; and
 BARRATT BISm has 1 reverse item, so p_r=1 collapses to 0.5 and is shown as a faded
 proxy via 2*T(0.5)-T(0).
@@ -13,6 +16,7 @@ proxy via 2*T(0.5)-T(0).
 Reads risk_data + ipipneo300_data (LLM/api/human, raw) + raw human LOT/DFD sources.
 Writes:
   results/tables/profiles_per_keying.csv
+  results/tables/profiles_bias_correction.csv   (per-subscale reliabilities)
   results/figures/profiles_per_keying.pdf
 """
 from __future__ import annotations
@@ -71,6 +75,7 @@ if _missing:
     )
     sys.exit(77)
 OUT_TABLE = ROOT / "analysis/results/tables/profiles_per_keying.csv"
+OUT_CORRECTION_TABLE = ROOT / "analysis/results/tables/profiles_bias_correction.csv"
 OUT_FIG = ROOT / "analysis/results/figures/profiles_per_keying.pdf"
 OUT_TABLE.parent.mkdir(parents=True, exist_ok=True)
 OUT_FIG.parent.mkdir(parents=True, exist_ok=True)
@@ -125,7 +130,7 @@ SUBSCALE_TICK_LABELS_MAP = {
 # which is rendered as the first small-multiple (kept out of the LLM roster
 # and out of the saved table so downstream scripts see LLMs only).
 HUMAN_KEY = "__human_mean__"
-HUMAN_DISPLAY = "Humans (mean)"
+HUMAN_DISPLAY = "Humans"
 
 TARGET_P_R = [0.0, 0.5, 1.0]
 MIN_K_PROFILE = 2
@@ -185,7 +190,8 @@ def clean_model_name(name: str) -> str:
 
     The strippers run in a fixed-point loop so that nested suffixes like
     '-Instruct-v0.3' or '-Instruct-2509' fully collapse."""
-    n = name
+    # NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16 -> Nemotron-3-Ultra (too wide for a panel title)
+    n = re.sub(r"^NVIDIA-(.*)-\d+B-A\d+B-BF16$", r"\1", name)
     for _ in range(5):
         prev = n
         n = re.sub(r"-2\d{3}$", "", n)              # date e.g. -2509
@@ -212,10 +218,13 @@ def normalize_api_model(name: str) -> str:
       - drop a trailing ``-preview`` build tag,
       - drop a trailing ISO date ``-YYYY-MM-DD`` (Qwen),
       - drop grok's ``-NNNN-(non-)reasoning`` variant tag.
+    Large open-weight models served via vLLM carry an extra prefix,
+    ``vllm__org__model-id__condition``; for those the model-id is the third part.
     """
     if "__" not in name:
         return name
-    model_id = name.split("__")[1]
+    parts = name.split("__")
+    model_id = parts[2] if parts[0] == "vllm" else parts[1]
     model_id = re.sub(r"-preview$", "", model_id)
     model_id = re.sub(r"-\d{4}-(?:non-)?reasoning$", "", model_id)  # grok: -0309-non-reasoning
     model_id = re.sub(r"-\d{4}-\d{2}-\d{2}$", "", model_id)         # qwen: -2026-02-23
@@ -288,11 +297,13 @@ def load_combined_reference() -> pd.DataFrame:
 def load_proprietary_model_names() -> set[str]:
     """Bare model names (``normalize_api_model`` form) of the proprietary-API
     models. Used only for display: their panels get the API fill colour and a
-    trailing ``*`` in the title."""
+    trailing ``*`` in the title. The large open-weight models (``vllm__``) share
+    the API tables but are open-weight, so they are excluded."""
     names: set[str] = set()
     for path in (LLM_API_CSV, IPIP_API_CSV):
         col = pd.read_csv(path, low_memory=False, usecols=["model"])["model"]
-        names |= set(col[col.str.endswith("__nr")].map(normalize_api_model))
+        col = col[col.str.endswith("__nr") & ~col.str.startswith("vllm__")]
+        names |= set(col.map(normalize_api_model))
     return names
 
 
@@ -340,6 +351,16 @@ def _load_human_behavioral_position(meta: pd.DataFrame) -> pd.DataFrame:
     LOT: order randomised per trial (`Presentation_XZ`) -> per-trial keying; risky
     gamble is Z for Dec_ID 1-15, X for 16-25. DFD: order fixed per gamble, matches
     the LLM keying (`meta`); response = "chose option A" (position 1).
+
+    `item_id` identifies the gamble shown (for item-centring the noise term). The
+    human LOT is adaptive: two stages per Dec_ID (50 trials per person), and the
+    second-stage gamble depends on the person's first-stage choice. The
+    first-stage gamble is the same for everyone and identical to the 25 gambles
+    the LLMs received, so first-stage rows carry item_id = Dec_ID (matching the
+    LLM ids) and `lot_stage` = 1; second-stage rows carry the exact gamble
+    (Dec_ID plus outcomes and probabilities) as item_id and `lot_stage` = 2.
+    Analyses that compare humans and LLMs item by item use stage 1 only
+    (`lot_first_stage`).
     """
     # LOT — per-trial position coding.
     lot = pd.read_csv(HUMAN_LOT_SRC, low_memory=False).dropna(
@@ -348,10 +369,19 @@ def _load_human_behavioral_position(meta: pd.DataFrame) -> pd.DataFrame:
     dx = lot["Decision_X"].astype(int)
     pxz = lot["Presentation_XZ"].astype(int)
     risky_is_X = lot["Dec_ID"].astype(int) >= 16
+    gamble = ["Dec_ID", "X1", "X2", "PX1", "Z1", "Z2", "PZ1"]
+    stage = lot.groupby(["partid", "Dec_ID"])["Stage"].rank(method="first").astype(int)
+    first = stage == 1
+    # The first-stage gamble is fixed per Dec_ID (one gamble for all persons).
+    assert (lot[first].groupby("Dec_ID")[gamble[1:]].nunique() == 1).all().all()
+    assert set(stage.unique()) == {1, 2}
     lot_out = pd.DataFrame({
         "person_id": lot["partid"].to_numpy(),
         "experiment": "LOT",
         "category": np.nan,
+        "item_id": np.where(first, lot["Dec_ID"].astype(int).astype(str),
+                            lot[gamble].astype(str).agg("_".join, axis=1)),
+        "lot_stage": stage.to_numpy(),
         "response": np.where(pxz == 1, dx, 1 - dx).astype(float),   # chose first-presented option
         "reverse_coded": np.where(risky_is_X, pxz == 0, pxz == 1),  # risky gamble shown second
     })
@@ -370,6 +400,7 @@ def _load_human_behavioral_position(meta: pd.DataFrame) -> pd.DataFrame:
         "person_id": dfd["person_id"].to_numpy(),
         "experiment": "DFD",
         "category": np.nan,
+        "item_id": dfd["item_id"].to_numpy(),
         "response": dfd["response"].to_numpy(),
         "reverse_coded": dfd["reverse_coded"].astype(bool).to_numpy(),
     })
@@ -378,7 +409,8 @@ def _load_human_behavioral_position(meta: pd.DataFrame) -> pd.DataFrame:
 
 def load_human_risk_items() -> pd.DataFrame:
     """Per-person human risk responses. Columns: person_id, experiment, category,
-    response, reverse_coded.
+    item_id, response, reverse_coded, lot_stage (LOT rows only, see
+    `_load_human_behavioral_position`).
 
     Self-report scales (BARRATT, SSSV) use the content score and the per-item
     keying from the LLM metadata (their reverse-keying is item wording, identical
@@ -402,7 +434,7 @@ def load_human_risk_items() -> pd.DataFrame:
     )
     df = df.dropna(subset=["reverse_coded"])
     df["reverse_coded"] = df["reverse_coded"].astype(bool)
-    selfreport = df[["person_id", "experiment", "category", "response", "reverse_coded"]]
+    selfreport = df[["person_id", "experiment", "category", "item_id", "response", "reverse_coded"]]
 
     behavioral = _load_human_behavioral_position(meta)
     return pd.concat([selfreport, behavioral], ignore_index=True)
@@ -410,17 +442,18 @@ def load_human_risk_items() -> pd.DataFrame:
 
 def load_human_ipip_items() -> pd.DataFrame:
     """Per-person human IPIP-NEO-300 responses. The Big-Five letter lives in
-    `traits`; move it to `category` to match the risk-frame layout."""
+    `traits`; move it to `category` to match the risk-frame layout. The raw file
+    codes a missing answer as 0, so only 1-5 are kept (as in the Fig 3 loader)."""
     df = pd.read_csv(
         HUMAN_IPIP_CSV, low_memory=False,
-        usecols=["person_id", "traits", "response", "reverse_coded"],
+        usecols=["person_id", "item", "traits", "response", "reverse_coded"],
     )
-    df = df.rename(columns={"traits": "category"})
+    df = df.rename(columns={"traits": "category", "item": "item_id"})
     df["experiment"] = "IPIP-NEO-300"
     df["reverse_coded"] = df["reverse_coded"].astype(bool)
     df["response"] = pd.to_numeric(df["response"], errors="coerce")
-    df = df.dropna(subset=["response"])
-    return df[["person_id", "experiment", "category", "response", "reverse_coded"]]
+    df = df[df["response"].between(1, 5)]
+    return df[["person_id", "experiment", "category", "item_id", "response", "reverse_coded"]]
 
 
 def load_human_items() -> pd.DataFrame:
@@ -428,6 +461,13 @@ def load_human_items() -> pd.DataFrame:
     return pd.concat(
         [load_human_ipip_items(), load_human_risk_items()], ignore_index=True
     )
+
+
+def lot_first_stage(human: pd.DataFrame) -> pd.DataFrame:
+    """Drop second-stage human LOT trials, keeping the 25 first-stage gambles that
+    every person and every LLM answered. Other experiments are untouched."""
+    keep = (human["experiment"] != "LOT") | (human["lot_stage"] == 1)
+    return human[keep]
 
 
 def _subscale_slice(df: pd.DataFrame, experiment: str, category: str | None) -> pd.DataFrame:
@@ -500,6 +540,65 @@ def compute_human_mu_a(human_items: pd.DataFrame) -> float:
         Rr = sub[sub["reverse_coded"]].groupby("person_id")["response"].mean().mean()
         a_norms.append(((Rf + Rr) / 2 - midpoint) / half_range)
     return float(np.mean(np.abs(a_norms)))
+
+
+# ============================================================
+# Item-noise corrected bias (the numbers annotated in Fig 5)
+# ============================================================
+# Same error model as Fig 3 (02_capability_and_bias/utils.py): per unit, the error
+# variance of b_hat is (s_f²/n_f + s_r²/n_r)/4 with s² the unit's variance of
+# item-centred responses within the keying block; per subscale and population,
+# reliability = (Var(b_hat) - mean error variance) / Var(b_hat), and b_hat is shrunk
+# toward the population mean by sqrt(reliability).
+
+
+def corrected_bias(df: pd.DataFrame, unit: str, value: str) -> pd.DataFrame:
+    """Per (unit, subscale): raw and item-noise corrected normalised bias
+    (`a_raw`, `a_corr`, both b_hat / half_range) and the subscale's reliability.
+    One population per call (humans or LLMs), so items are centred within it.
+    BISm has a single reverse item, so its reverse-block variance is undefined and
+    the forward-block variance stands in for it (and vice versa if ever needed)."""
+    out = []
+    for exp, cat, label, smin, smax in SUBSCALES:
+        sub = _subscale_slice(df, exp, cat)
+        if sub.empty:
+            continue
+        midpoint, half_range = (smin + smax) / 2, (smax - smin) / 2
+        # centre within item x keying: human LOT randomises the presentation order
+        # per trial, so one gamble appears in both keyings (elsewhere item = cell)
+        resid = sub[value] - sub.groupby(["item_id", "reverse_coded"])[value].transform("mean")
+        keys = [sub[unit], sub["reverse_coded"]]
+        mean = sub[value].groupby(keys).mean().unstack()
+        n = sub[value].groupby(keys).count().unstack()
+        s2 = resid.groupby(keys).var().unstack()
+        s2_f, s2_r = s2[False].fillna(s2[True]), s2[True].fillna(s2[False])
+        b = ((mean[False] + mean[True]) / 2 - midpoint).dropna()
+        err = ((s2_f / n[False] + s2_r / n[True]) / 4).loc[b.index]
+        var_obs = float(b.var())
+        rel = max(var_obs - float(err.mean()), 0.0) / var_obs if var_obs > 0 else 1.0
+        b_corr = b.mean() + np.sqrt(rel) * (b - b.mean())
+        out.append(pd.DataFrame({
+            unit: b.index, "subscale": label, "reliability": rel,
+            "a_raw": (b / half_range).to_numpy(),
+            "a_corr": (b_corr / half_range).to_numpy(),
+        }))
+    return pd.concat(out, ignore_index=True)
+
+
+def compute_mu_a_corrected(llm_df: pd.DataFrame) -> pd.Series:
+    """Per-model mean |a_corr| over the subscales (the Fig 5 annotation)."""
+    a = corrected_bias(llm_df, "model", "model_answer")
+    return a.groupby("model")["a_corr"].agg(lambda s: np.mean(np.abs(s))).rename("mu_a_abs_corr")
+
+
+def compute_human_mu_a_corrected(human_items: pd.DataFrame) -> float:
+    """Human counterpart of compute_mu_a_corrected: per subscale the median over
+    persons of |a_corr|, then the mean over subscales. No person took both the IPIP
+    and the risk battery, so the median cannot be formed per person across all 14.
+    Human LOT uses the 25 first-stage gambles only (item-centring needs items that
+    everyone answered; they are the gambles the LLMs got)."""
+    a = corrected_bias(lot_first_stage(human_items), "person_id", "response")
+    return float(a.groupby("subscale")["a_corr"].agg(lambda s: np.median(np.abs(s))).mean())
 
 
 # ============================================================
@@ -760,10 +859,10 @@ def make_figure(profiles: pd.DataFrame, mu_a: pd.DataFrame,
     # stays the canonical data key used to match rows in panel_df.
     tick_order = [SUBSCALE_TICK_LABELS_MAP[lab] for lab in label_order]
 
-    # Model ordering: ascending by mu_a_risk_abs so reader scans from
-    # "least bias-affected → fully bias-determined" profiles. The human-mean
+    # Model ordering: ascending by the item-noise corrected |mu_b| so reader scans
+    # from "least bias-affected → fully bias-determined" profiles. The human-mean
     # reference profile is pinned to the first panel.
-    ordered = [HUMAN_KEY] + mu_a.sort_values("mu_a_risk_abs").index.tolist()
+    ordered = [HUMAN_KEY] + mu_a.sort_values("mu_a_abs_corr").index.tolist()
     panel_profiles = pd.concat([human_profiles, profiles], ignore_index=True)
     n_cols = 9
     n_rows = int(np.ceil(len(ordered) / n_cols))
@@ -790,7 +889,7 @@ def make_figure(profiles: pd.DataFrame, mu_a: pd.DataFrame,
         is_prop = (not is_human) and (model in proprietary)
         plot_profile(
             ax, panel, model,
-            human_mu_a_abs if is_human else float(mu_a.loc[model, "mu_a_risk_abs"]),
+            human_mu_a_abs if is_human else float(mu_a.loc[model, "mu_a_abs_corr"]),
             label_order=label_order, tick_order=tick_order,
             first_in_grid=(idx % n_cols == 0),
             fill_color=HUMAN_FILL if is_human else (LLM_API_FILL if is_prop else LLM_FILL),
@@ -832,8 +931,10 @@ def make_figure(profiles: pd.DataFrame, mu_a: pd.DataFrame,
         y_above = min(ax.get_position().y0 for ax in above) if above else ry1
         caption_y = ry1 + caption_raise * (y_above - ry1)
         fig.text(cx, caption_y, caption, ha="center", va="top", fontsize=FS_TITLE)
-        fig.legend(handles=handles, loc="upper center", ncol=2,
-                   bbox_to_anchor=(cx, ry1 - 0.040), frameon=False, fontsize=FS_TITLE)
+        # Two legend columns need >= 3 free cells, else one column.
+        fig.legend(handles=handles, loc="upper center",
+                   ncol=2 if len(empty_idx) >= 3 else 1,
+                   bbox_to_anchor=(cx, ry1 - 0.02), frameon=False, fontsize=FS_TITLE)
     else:
         fig.legend(handles=handles, loc="lower center", ncol=5, frameon=False,
                    bbox_to_anchor=(0.5, 0.01), fontsize=FS_TITLE)
@@ -855,9 +956,10 @@ def main() -> None:
     print(f"  {n_models} models (intersect of risk and IPIP rosters)")
 
     print("Computing per-model |mu_a| across all 14 scales (signed and absolute)...")
-    mu_a = compute_mu_a_risk(llm_df)
+    mu_a = compute_mu_a_risk(llm_df).join(compute_mu_a_corrected(llm_df))
     print(f"  signed   mu_a     range: {mu_a['mu_a_risk'].min():+.2f} … {mu_a['mu_a_risk'].max():+.2f}")
     print(f"  absolute |mu_a|   range: {mu_a['mu_a_risk_abs'].min():.2f} … {mu_a['mu_a_risk_abs'].max():.2f}")
+    print(f"  corrected |mu_a|  range: {mu_a['mu_a_abs_corr'].min():.2f} … {mu_a['mu_a_abs_corr'].max():.2f}")
 
     print("Computing T at p_r ∈ {0, 0.5, 1} per (model, subscale)...")
     profiles = compute_profiles(llm_df)
@@ -870,8 +972,24 @@ def main() -> None:
     print(f"  {human_items['person_id'].nunique():,} persons")
     subscale_counts = compute_subscale_counts(llm_df)
     human_profiles = compute_human_profiles(human_items, subscale_counts)
-    human_mu_a_abs = compute_human_mu_a(human_items)
-    print(f"  human |mu_a| = {human_mu_a_abs:.2f}")
+    human_mu_a_abs = compute_human_mu_a_corrected(human_items)
+    print(f"  human |mu_a| (median individual, corrected) = {human_mu_a_abs:.2f}"
+          f"  [average human, uncorrected: {compute_human_mu_a(human_items):.2f}]")
+
+    # Per-subscale reliabilities and human medians behind the corrected numbers.
+    def _summary(a: pd.DataFrame, pop: str) -> pd.DataFrame:
+        g = a.groupby("subscale", sort=False)
+        return pd.DataFrame({
+            "population": pop, "reliability": g["reliability"].first(),
+            "median_abs_a_raw": g["a_raw"].agg(lambda s: np.median(np.abs(s))),
+            "median_abs_a_corr": g["a_corr"].agg(lambda s: np.median(np.abs(s))),
+            "n": g.size(),
+        })
+    pd.concat([
+        _summary(corrected_bias(lot_first_stage(human_items), "person_id", "response"), "humans"),
+        _summary(corrected_bias(llm_df, "model", "model_answer"), "LLMs"),
+    ]).to_csv(OUT_CORRECTION_TABLE, index_label="subscale")
+    print(f"  -> {OUT_CORRECTION_TABLE.relative_to(ROOT)}")
 
     print("Rendering small-multiples figure...")
     proprietary = load_proprietary_model_names()

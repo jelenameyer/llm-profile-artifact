@@ -4,15 +4,17 @@ Also prints the per-trait forward-reverse correlations cited in the SI text.
 Writes results/figures/forward_reverse_api_supp.pdf."""
 import pandas as pd
 import matplotlib.pyplot as plt
-from utils import get_corrs_and_ci, plot_corr_panel
+from utils import get_corrs_and_ci, plot_corr_panel, is_proprietary
 
 TRAITS = ["O", "C", "E", "A", "N"]
 
-# load API data; split reasoning (__r) vs non-reasoning (__nr) sub-conditions
+# load API data (proprietary models only; the large open-weight vllm__ models
+# share the table); split reasoning (__r) vs non-reasoning (__nr) sub-conditions
 api_data = pd.read_csv(
     "../../../data/ipipneo300_data/api_data/ipipneo_api_data_raw.csv",
     low_memory=False,
 )
+api_data = api_data[api_data["model"].map(is_proprietary)]
 api_nr = api_data[api_data["model"].str.contains("_nr", regex=False)]
 api_r = api_data[api_data["model"].str.contains("_r", regex=False)]
 
