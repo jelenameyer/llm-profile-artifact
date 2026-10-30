@@ -266,7 +266,7 @@ r_hum, rho_hum, n_hum = _corr_stats(mean_hum["pct_reversed_pct"], mean_hum["mean
 print(f"LLM: r = {r_llm:+.2f}, $\\rho$ = {rho_llm:+.2f} (N = {n_llm})\n")
 print(f"Human: r = {r_hum:+.2f},  $\\rho$ = {rho_hum:+.2f} (N = {n_hum})")
 
-ax.set_xlabel("Proportion of reversed-keyed items (%)", fontsize=FS_LABEL)
+ax.set_xlabel("Response orthogonality (% reverse-keyed items)", fontsize=FS_LABEL)
 ax.set_ylabel("Mean inter-item correlation (within instrument)", fontsize=FS_LABEL)
 ax.spines[["top", "right"]].set_visible(False)
 
