@@ -182,13 +182,13 @@ caption = (
     "Qwen3.5-Flash (35B, hosted Qwen3.5-35B-A3B) from secondary sources. The other "
     "seven were estimated by asking three LLMs (ChatGPT, Claude, Gemini) the same "
     "question in fresh chats and averaged (see text): "
-    f"{est_sizes}. $\\beta$: OLS "
+    f"{est_sizes}. $b$: unstandardized OLS "
     "change in $|\\hat b|$ per tenfold increase in parameters, with 95\\% CI, alone and "
     "controlling for release date or for a proprietary indicator (two separate "
     "regressions). All size estimates for proprietary models are uncertain."
 )
-HEADER_A = ["Trait", "$r$", "$\\beta$ [95\\% CI]", "$p$", "Spearman $\\rho$ ($p$)",
-            "$\\beta$ + date", "$p$", "$\\beta$ + proprietary", "$p$"]
+HEADER_A = ["Trait", "$r$", "$b$ [95\\% CI]", "$p$", "Spearman $\\rho$ ($p$)",
+            "$b$ + date", "$p$", "$b$ + proprietary", "$p$"]
 with open(TABLE_DIR / "size_with_proprietary_estimates.tex", "w", encoding="utf-8") as f:
     f.write(
         "\\begin{table}\n\\caption{" + caption + "}\n\\label{tab:size_with_proprietary_estimates}\n"

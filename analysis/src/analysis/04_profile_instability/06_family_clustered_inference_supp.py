@@ -236,7 +236,7 @@ pi_lo = (1 + a[["series_lo", "developer_lo"]].min(axis=1)) / 2
 body += ["\\midrule",
          "\\multicolumn{5}{@{}l}{\\textit{B. Size slope of $|\\hat b|$ per decade, open-weight "
          f"models ($n$ = {len(open_df)})}}}} \\\\",
-         "Model, outcome & $\\beta$ & OLS CI, $p$ & series CI, wild $p$ & developer CI, wild $p$ \\\\",
+         "Model, outcome & $b$ & OLS CI, $p$ & series CI, wild $p$ & developer CI, wild $p$ \\\\",
          "\\midrule"]
 for _, r in res[res["analysis"].str.startswith("B")].iterrows():
     spec = r["analysis"].split("~ ")[1]

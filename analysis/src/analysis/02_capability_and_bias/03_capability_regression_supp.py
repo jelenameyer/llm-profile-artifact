@@ -15,6 +15,9 @@ ECI downloaded 2026-10-22, Arena snapshot 2026-10-13). OLS with 95% CIs; Spearma
   7. MMLU-Pro (Open LLM Leaderboard v2, normalised) models with a score
      (covers the small open-weight models ECI misses)
   8. LMArena text Elo (style-controlled), per 100 points, models with a score
+  9. log10(total parameters), estimated for the proprietary models (params_est_B,
+     as in 06_size_with_proprietary_estimates_supp.py), alone and with release date
+     or the proprietary indicator                   all models (n = 60)
 Each model is fitted on all models and again without the constant responders
 (rule in ../panel.py).
 
@@ -59,11 +62,14 @@ def metadata_row(model: str) -> pd.Series:
 
 
 meta = pd.DataFrame([metadata_row(m) for m in abs_b.index], index=abs_b.index)
+size_est = pd.Series(abs_b.index.map(MODEL_SIZE.get), index=abs_b.index, dtype=float).fillna(
+    pd.to_numeric(meta["params_est_B"], errors="coerce"))
 release = pd.to_datetime(meta["release_date"])
 df = abs_b.assign(
     release_year=2020 + (release - pd.Timestamp("2020-01-01")).dt.days / 365.25,
     log_total=np.log10(abs_b.index.map(MODEL_SIZE.get).astype(float)),
     log_active=np.log10(abs_b.index.map(MODEL_SIZE_ACTIVE.get).astype(float)),
+    log_est=np.log10(size_est),
     proprietary=(~abs_b.index.isin(list(MODEL_SIZE))).astype(int),
     large=abs_b.index.isin(list(LARGE_OPEN_MODELS)),
     eci=pd.to_numeric(meta["eci"], errors="coerce"),
@@ -71,7 +77,7 @@ df = abs_b.assign(
     arena=pd.to_numeric(meta["arena_text_elo"], errors="coerce") / 100,
     constant=abs_b.index.map(bare_model_name).isin(low_variability_models()[0]["constant"]),
 )
-assert len(df) == 60 and df["release_year"].notna().all()
+assert len(df) == 60 and df[["release_year", "log_est"]].notna().all().all()
 
 # ============================================================
 # Regressions
@@ -87,8 +93,11 @@ SPECS = [  # (block, label, rhs, subset): single predictors first, then joint fi
     ("A", "active size + date", "log_active + release_year", open_w),
     ("A", "size + date, without >=300B", "log_total + release_year",
      lambda d: d[(d["proprietary"] == 0) & ~d["large"]]),
+    ("B", "est. size", "log_est", lambda d: d),
     ("B", "date", "release_year", lambda d: d),
+    ("B", "est. size + date", "log_est + release_year", lambda d: d),
     ("B", "proprietary", "proprietary", lambda d: d),
+    ("B", "est. size + proprietary", "log_est + proprietary", lambda d: d),
     ("B", "date + proprietary", "release_year + proprietary", lambda d: d),
     ("C", "ECI", "eci", lambda d: d[d["eci"].notna()]),
     ("C", "MMLU-Pro", "mmlu_pro", lambda d: d[d["mmlu_pro"].notna()]),
@@ -121,6 +130,7 @@ res.to_csv(TABLE_DIR / "capability_regression.csv", index=False)
 # ============================================================
 
 LABEL = {"log_total": "log$_{10}$ total parameters", "log_active": "log$_{10}$ active parameters",
+         "log_est": "log$_{10}$ est.\\ parameters",
          "release_year": "release date (years)", "proprietary": "proprietary",
          "eci": "ECI", "mmlu_pro": "MMLU-Pro", "arena": "Arena Elo (per 100)"}
 
@@ -133,8 +143,8 @@ def num(x, d=3):
     return f"{x:.{d}f}".replace("-", "$-$")   # typeset minus, not hyphen
 
 
-HEADER = ["Model", "$n$", "Predictor", "$\\beta$ [95\\% CI]", "$p$", "$p$ per trait",
-          "Spearman $\\rho$ ($p$)", "$\\beta$ excl.\\ const.", "$p$ excl.\\ const."]
+HEADER = ["Model", "$n$", "Predictor", "$b$ [95\\% CI]", "$p$", "$p$ per trait",
+          "Spearman $\\rho$ ($p$)", "$b$ excl.\\ const.", "$p$ excl.\\ const."]
 main = res[res["sample"] == "all"]
 excl = res[(res["sample"] == "excl. constant") & (res["outcome"] == "mean")].set_index(
     ["block", "spec", "predictor"])
@@ -167,11 +177,12 @@ caption = (
     "Regressions of absolute response bias on model size, release date and capability "
     "scores (OLS). Outcome: $|\\hat b|$ averaged over the Big Five (IPIP-NEO-300, "
     "item-noise corrected as in main-text Fig.~3); $p$ per trait gives the range of the "
-    "predictor's $p$-value over the five single-trait fits. $\\beta$ is the change in "
+    "predictor's $p$-value over the five single-trait fits. $b$ is the unstandardized coefficient, the change in "
     "$|\\hat b|$ per tenfold increase in parameters, per year of release, per score point "
     "(Arena Elo: per 100 points), or for proprietary vs open-weight models. Size is public "
     "for open-weight models only (nominal counts; active equals total parameters for "
-    "dense models). Release date: first public release of the weights administered "
+    "dense models); est.\\ size adds the estimated sizes of the proprietary models "
+    "(Table~\\ref{tab:size_with_proprietary_estimates}). Release date: first public release of the weights administered "
     "(proprietary models: API availability). Capability scores: ECI, Epoch Capabilities "
     "Index (downloaded 22 Oct 2026); MMLU-Pro, Open LLM Leaderboard v2 (normalised), "
     "available for small open-weight models only; Arena Elo, LMArena text leaderboard "
