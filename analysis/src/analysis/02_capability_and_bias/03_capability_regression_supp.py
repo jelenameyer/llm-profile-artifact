@@ -184,7 +184,7 @@ caption = (
     "dense models); est.\\ size adds the estimated sizes of the proprietary models "
     "(Table~\\ref{tab:size_with_proprietary_estimates}). Release date: first public release of the weights administered "
     "(proprietary models: API availability). Capability scores: ECI, Epoch Capabilities "
-    "Index (downloaded 22 Oct 2026); MMLU-Pro, Open LLM Leaderboard v2 (normalised), "
+    "Index (downloaded 22 Oct 2026); MMLU-Pro, Open LLM Leaderboard v2 (normalized), "
     "available for small open-weight models only; Arena Elo, LMArena text leaderboard "
     "(style-controlled, snapshot of 13 Oct 2026). Each score regression uses only the models that have that "
     "score. Spearman $\\rho$ is given for single-predictor fits. Last two columns: the "

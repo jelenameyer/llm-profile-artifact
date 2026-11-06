@@ -291,9 +291,9 @@ for task in BEHAVIOURAL:
 
 f5 = fig5.set_index("sample")
 caption = (
-    "Robustness of the behavioural-task results. (A) Cross-instrument correlation of "
+    "Robustness of the behavioral-task results. (A) Cross-instrument correlation of "
     "$p_r$ with mean inter-item correlation (Fig.~4A), with instrument-clustered "
-    "bootstrap 95\\% CI and wild-cluster bootstrap $p$. (B) Behavioural tasks: mean "
+    "bootstrap 95\\% CI and wild-cluster bootstrap $p$. (B) Behavioral tasks: mean "
     "inter-item correlation, and median keying shift $|\\hat b|$ on the 0--1 choice "
     "scale (share choosing the first-listed option minus .5), corrected for item noise "
     "with the same error model for models and persons; last column: share of models "
@@ -309,12 +309,12 @@ caption = (
     f"{f5.loc['with dfd', 'mean_open_weight']:.2f} $\\to$ "
     f"{f5.loc['without dfd', 'mean_open_weight']:.2f}, risk block "
     f"{f5.loc['with dfd', 'mean_risk']:.2f} $\\to$ {f5.loc['without dfd', 'mean_risk']:.2f}. "
-    "(C) All behavioural tasks in the weighted condition, the only one that administered "
+    "(C) All behavioral tasks in the weighted condition, the only one that administered "
     "BART, CCT and DFE; DFE uses the same problems and keying as DFD and shares its "
     "confound. Across the four unconfounded tasks, $p_r$ vs mean inter-item correlation: "
     f"$r$ = {behav_grad['r'].iloc[1]:.2f} (all six: {behav_grad['r'].iloc[0]:.2f}); with "
     "a single balanced unconfounded task (LOT) this is descriptive. "
-    "Within model, the normalised LOT keying shift and the mean self-report bias have "
+    "Within model, the normalized LOT keying shift and the mean self-report bias have "
     f"median magnitudes {within['median_abs_lot'].iloc[0]:.2f} and "
     f"{within['median_abs_selfreport'].iloc[0]:.2f} (LOT $\\geq$ self-report in "
     f"{100 * within['share_lot_ge_selfreport'].iloc[0]:.0f}\\% of models); their signs "
