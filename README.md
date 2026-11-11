@@ -65,9 +65,10 @@ python 02_forward_reverse_corr_table.py
 ```
 
 To re-run preprocessing from the raw responses, first download the
-[source data](#source-data) (`python download_data.py --source`, ~10 GB) and the
-original human datasets, then run the scripts in
-[`analysis/src/preprocessing/`](analysis/src/preprocessing/).
+[source data](#source-data) (`python download_data.py --source`, ~10 GB), which also
+downloads the human data from their original OSF projects, then run the scripts in
+[`analysis/src/preprocessing/`](analysis/src/preprocessing/) (see
+[Re-running preprocessing](#re-running-preprocessing)).
 
 ---
 
@@ -139,10 +140,14 @@ original sources, [`Frey et al. (2017)`](https://osf.io/rce7g/overview) and
   `dfd_perprob.csv`, for the per-trial LOT/DFD keying the cleaned data does not carry).
   `download_data.py` pulls these two files **automatically** from the public Frey OSF project,
   so the default analysis runs with no manual step.
-- To re-run **preprocessing** from scratch you need the *full* original datasets. Download
-  them from the two sources above and place them in
-  `analysis/source/ipipneo300_data/human_data/` (`ipip20993.dat`, `IPIP-NEO-ItemKey.xls`)
-  and `analysis/source/risk_data/orig_human_data/`.
+
+### Re-running preprocessing
+
+`python download_data.py --source` fetches the raw LLM responses and the original human
+files. Then run the scripts in [`analysis/src/preprocessing/`](analysis/src/preprocessing/)
+in numbered order (01–07) from within that folder, the notebooks with
+`jupyter nbconvert --to notebook --execute`. They overwrite `analysis/data/` with the
+rebuilt cleaned data.
 
 ---
 
