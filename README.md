@@ -15,7 +15,7 @@ Code to reproduce the data generation as well as all analyses, figures, and tabl
 | You want to...                                 | Do this                         | Needs                |
 | ---------------------------------------------- | ------------------------------- | -------------------- |
 | **Reproduce every figure & table** (default)   | `python run_all.py` (one command) | Python, ~590 MB data |
-| Re-run preprocessing from raw responses        | [request the source data](#requesting-the-source-data), then the preprocessing scripts | Python, ~10 GB data  |
+| Re-run preprocessing from raw responses        | `python download_data.py --source`, then the preprocessing scripts | Python, ~10 GB data  |
 | **Re-generate the LLM data from scratch**      | see [Data generation](#data-generation) | GPUs + paid API keys |
 
 The default path downloads the cleaned (`data`) tier from OSF and runs the
@@ -64,9 +64,9 @@ cd analysis/src/analysis/01_bias_not_trait
 python 02_forward_reverse_corr_table.py
 ```
 
-To re-run preprocessing from the raw responses, first
-[request the source data](#requesting-the-source-data) (it is not hosted on OSF),
-place it under `analysis/source/`, and run the scripts in
+To re-run preprocessing from the raw responses, first download the
+[source data](#source-data) (`python download_data.py --source`, ~10 GB) and the
+original human datasets, then run the scripts in
 [`analysis/src/preprocessing/`](analysis/src/preprocessing/).
 
 ---
@@ -84,14 +84,14 @@ place it under `analysis/source/`, and run the scripts in
 │
 ├── analysis/
 │   ├── src/
-│   │   ├── preprocessing/     # 01–08: raw responses -> clean person-per-item data
+│   │   ├── preprocessing/     # 01–07: raw responses -> clean person-per-item data
 │   │   └── analysis/          # one folder per Results section, in paper order
 │   │       ├── 01_bias_not_trait/         # ρ sign-flip diagnostic, Fig 2, Table 1, negation checks
 │   │       ├── 02_capability_and_bias/    # trait/bias decomposition, Fig 3, size/provider
 │   │       ├── 03_orthogonality/          # reliability (Cronbach α) vs orthogonality, Fig 4
 │   │       └── 04_profile_instability/    # profile shift across keyings, Fig 5
 │   ├── data/                 # cleaned data, populated by download_data.py (git-ignored)
-│   ├── source/               # raw responses (on request, not on OSF); git-ignored
+│   ├── source/               # raw responses ('source' tier on OSF); git-ignored
 │   └── results/
 │       ├── figures/          # regenerated PDFs
 │       └── tables/           # regenerated CSV / LaTeX tables
@@ -111,23 +111,25 @@ All data is hosted on OSF as plain folder trees and fetched with
 | -------------- | -------------------------------------- | ------- | -------------------------------- |
 | `data`         | `analysis/data/`                       | ~590 MB | all figures/tables (default)     |
 | `survey_data`  | `data_generation/hybrid/survey_data/`  | ~200 MB | re-generating data (hybrid path) |
-| `source`       | `analysis/source/`                     | ~10 GB  | re-running preprocessing (01–08) — **not on OSF, [available on request](#requesting-the-source-data)** |
+| `source`       | `analysis/source/`                     | ~10 GB  | re-running preprocessing (01–07) |
 
 ```bash
 python download_data.py                 # data tier only
 python download_data.py --survey-data   # data + generation prompts
-python download_data.py --all           # every OSF-hosted tier (data + survey_data)
-python download_data.py --source        # prints how to request the source data
+python download_data.py --source        # data + raw LLM responses (~10 GB)
+python download_data.py --all           # every tier (data + survey_data + source)
 ```
 
-### Requesting the source data
+### Source data
 
-To keep the public archive manageable, the **source data** (the raw LLM responses, ~10 GB)
-is **not hosted on OSF**. It is available from the authors on request — email
-**wulff@mpib-berlin.mpg.de**. You only need it to re-run the preprocessing scripts
-(01–08) from scratch; the default analysis path uses the cleaned `data` tier and
-needs nothing else. Once received, place it under `analysis/source/` (preserving the
-folder structure) before running the preprocessing scripts.
+The **source data** are the raw LLM responses (~10 GB): one response file per model,
+instrument and condition, for the 46 locally run open-weight models
+(`ipipneo300_data/llm_data/`, `risk_data/LLM_data/`) and for the proprietary and large
+open-weight API models (`*/outputs_api*/`). You only need them to re-run the
+preprocessing scripts (01–07) from scratch; the default analysis path uses the cleaned
+`data` tier and needs nothing else. `python download_data.py --source` mirrors them into
+`analysis/source/`. In the API files, the path segment of the self-hosted vLLM endpoint
+URLs (`request_url`) is replaced by `DEPLOYMENT`.
 
 **Human data.** The original human datasets are not re-hosted here; they come from their
 original sources, [`Frey et al. (2017)`](https://osf.io/rce7g/overview) and
@@ -139,7 +141,8 @@ original sources, [`Frey et al. (2017)`](https://osf.io/rce7g/overview) and
   so the default analysis runs with no manual step.
 - To re-run **preprocessing** from scratch you need the *full* original datasets. Download
   them from the two sources above and place them in
-  `analysis/source/ipipneo300_data/human/` and `analysis/source/risk_data/human/`.
+  `analysis/source/ipipneo300_data/human_data/` (`ipip20993.dat`, `IPIP-NEO-ItemKey.xls`)
+  and `analysis/source/risk_data/orig_human_data/`.
 
 ---
 
@@ -148,8 +151,7 @@ original sources, [`Frey et al. (2017)`](https://osf.io/rce7g/overview) and
 > You do **not** need to run this to reproduce the paper — the cleaned data needed for every
 > figure and table is published on OSF and fetched by `download_data.py`. This folder
 > documents (and, with the right hardware and API-keys, reproduces) the raw LLM responses
-> themselves, which are [available on request](#requesting-the-source-data) rather than on
-> OSF. LLM outputs are not fully deterministic, so re-generated data can differ slightly from
+> themselves, which are published on OSF as the [source data](#source-data) tier. LLM outputs are not fully deterministic, so re-generated data can differ slightly from
 > the data underlying the paper.
 
 There are two generation paths:

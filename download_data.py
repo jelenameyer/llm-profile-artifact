@@ -7,6 +7,7 @@ mirrors the chosen folders from OSF into the local repo, preserving structure:
 
     OSF:  osfstorage/data/...           ->  analysis/data/...
     OSF:  osfstorage/survey_data/...    ->  data_generation/hybrid/survey_data/...
+    OSF:  osfstorage/source/...         ->  analysis/source/...
 
 Tiers
 -----
@@ -14,6 +15,8 @@ Tiers
                              reproduce every figure and table. Downloaded by default.
   * survey_data   (~200 MB)  per-participant prompts for the hybrid generation path.
                              Only needed to re-generate data. Use ``--survey-data``.
+  * source        (~10 GB)   raw LLM responses. Only needed to re-run the preprocessing
+                             scripts. Use ``--source``.
 
 Every run except ``--tier survey_data`` also fetches two small original Frey et al. (2017)
 source files (lotteries.csv, dfd_perprob.csv) that two analysis scripts read directly. These
@@ -22,8 +25,9 @@ are pulled from the *public* Frey OSF project, not re-hosted here.
 Usage
 -----
     python download_data.py                  # data tier only (default)
-    python download_data.py --all            # every OSF-hosted tier (data + survey_data)
+    python download_data.py --all            # every tier (data + survey_data + source)
     python download_data.py --survey-data    # data + generation prompts
+    python download_data.py --source         # data + raw LLM responses (~10 GB)
     python download_data.py --list           # show tiers and exit
 
 For a still-private OSF project, set an access token first:
@@ -49,6 +53,7 @@ REPO_ROOT = Path(__file__).resolve().parent
 TIERS = {
     "data":        ("data",        REPO_ROOT / "analysis"),
     "survey_data": ("survey_data", REPO_ROOT / "data_generation" / "hybrid"),
+    "source":      ("source",      REPO_ROOT / "analysis"),
 }
 
 # Two original Frey et al. (2017) files that two analysis scripts read directly (for
@@ -119,6 +124,7 @@ def download_frey_files(force: bool = False) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--survey-data", action="store_true", help="also download generation prompts")
+    ap.add_argument("--source", action="store_true", help="also download the raw LLM responses (~10 GB)")
     ap.add_argument("--all", action="store_true", help="download every OSF-hosted tier")
     ap.add_argument("--tier", choices=list(TIERS), help="download only this tier")
     ap.add_argument("--force", action="store_true", help="re-download files that already exist")
@@ -139,6 +145,8 @@ def main() -> None:
         tiers = ["data"]
         if args.survey_data:
             tiers.append("survey_data")
+        if args.source:
+            tiers.append("source")
 
     storage = _osf_storage()
     for tier in tiers:
